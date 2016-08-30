@@ -1,0 +1,523 @@
+package dominio;
+
+import java.util.ArrayList;
+import java.util.Hashtable;
+
+/**
+ * Clase con el algoritmo MonteCarlo Tree Search
+ *
+ * @author Àlex Ramírez Gómez
+ */
+public class ControladorAlgoMonteCarlo {
+
+	/**
+	 * Clase que representa un nodo del árbol.
+	 *
+	 * @author MonteCarlo Tree Search Research Hub (http://mcts.ai)
+	 * @author Àlex Ramírez Gómez
+	 */
+	private class TreeNode implements java.lang.Comparable<TreeNode> {
+
+		/**
+		 * La distribución del tablero.
+		 */
+		Tablero t;
+		/**
+		 * La última posición en la que se ha jugado.
+		 */
+		Posicion ultima;
+		/**
+		 * El color del jugador que realizó la última jugada.
+		 */
+		int color_ultima_jugada;
+		/**
+		 * Nodos hijo en el árbol de jugadas.
+		 */
+		TreeNode[] hijos;
+		/**
+		 * Número de veces que se ha visitado el nodo.
+		 */
+		double nVisitas;
+		/**
+		 * Valor del nodo.
+		 */
+		double valor;
+
+		/**
+		 * Creadora.
+		 *
+		 * @param t La distribución del tablero.
+		 * @param x La coordenada x de la última casilla en la que se ha
+		 * colocado una ficha.
+		 * @param y La coordenada y de la última casilla en la que se ha
+		 * colocado una ficha.
+		 * @param color El color del jugador que ha de realizar la siguiente
+		 * jugada.
+		 * @param calculate Si se ha de calcular o no el valor heurístico del
+		 * tablero.
+		 */
+		TreeNode(Tablero t, int x, int y, int color_ultima_jugada, boolean calculate, long tiempo_fin) {
+			try {
+				this.t = t.clon();
+			} catch (Exception e) {
+			}
+			//this.t = t;
+			ultima = new Posicion(x, y);
+			this.color_ultima_jugada = color_ultima_jugada;
+			hijos = null;
+			nVisitas = 1;
+			if (calculate) {
+				Float valor_ya_calculado = (Float) ht.get(new ControladorAlgo.TableroHash(this.t, color_ultima_jugada));
+				if (valor_ya_calculado != null) {
+					//Si el valor ya ha sido calculado por otra rama, estará almacenado en la tabla de hash y no es necesario repetir cálculos.
+					valor = valor_ya_calculado;
+				} else {
+					if (heuristico == ControladorAlgoHeur.ESTOCASTICO) {
+						try {
+							valor = ControladorAlgoHeur.heuristicoEstocastico(this.t, color_ultima_jugada);
+						} catch (Exception e) {
+							System.err.println("heuristicoEstocastico: " + e.getMessage());
+						}
+					} else {
+						try {
+							valor = ControladorAlgoHeur.heuristicoDistancia(this.t, color_ultima_jugada, tiempo_fin);
+						} catch (Exception e) {
+							System.err.println("heuristicoDistancia: " + e.getMessage());
+						}
+					}
+					ht.put(new ControladorAlgo.TableroHash(this.t, color_ultima_jugada), new Float(valor));
+				}
+			} else {
+				valor = Float.NEGATIVE_INFINITY;
+			}
+		}
+
+		/**
+		 * Función principal.
+		 *
+		 * @param tiempo_fin El momento en el que se abandonará la búsqueda.
+		 * @param profundidad La profundidad máxima a la que se llegará.
+		 * @param visited Almacena los nodos que se han visitado.
+		 */
+		private void mc(long tiempo_fin, int profundidad, ArrayList<TreeNode> visited, ArrayList<Posicion> vacias) {
+			visited.add(this);
+			if (profundidad == 0) {
+				double valor = rollOut(this);
+				for (TreeNode v : visited) {
+					v.updateStats(valor);
+				}
+				return;
+			}
+			if (hijos == null) {
+				expand(tiempo_fin, vacias);
+			}
+			if(tiempo_fin == -1 || System.currentTimeMillis() < tiempo_fin) {
+				for (TreeNode h : hijos) {
+					h.mc(tiempo_fin, profundidad - 1, visited, ControladorAlgo.quitar(vacias, h.ultima.getx(), h.ultima.gety()));
+				}
+			}
+		}
+
+		/**
+		 * Expande un nodo generando todos sus hijos.
+		 *
+		 * @param tiempo_fin Momento en el que se debe abandonar la búsqueda
+		 */
+		private void expand(long tiempo_fin, ArrayList<Posicion> vacias) {
+			int nuevo_color = 2;
+			if (color_ultima_jugada == 2) {
+				nuevo_color = 1;
+			}
+			ArrayList<ControladorAlgo.PosicionHeur> vacias2 = new ArrayList<ControladorAlgo.PosicionHeur>();
+			//if(ramificacion < vacias.size()) {
+			ArrayList<ControladorAlgo.PosicionHeur> pha = new ArrayList<ControladorAlgo.PosicionHeur>();
+			for (int i = 0; i < vacias.size(); ++i) {
+				if (i > 0 && tiempo_fin != -1 && System.currentTimeMillis() >= tiempo_fin) {
+					break;
+				}
+				ControladorAlgo.PosicionHeur ph = new ControladorAlgo.PosicionHeur();
+				ph.p = vacias.get(i);
+				try {
+					Tablero t2 = t.clon();
+					t2.poner_ficha(ph.p.getx(), ph.p.gety(), color_ultima_jugada);
+					Float valor_ya_calculado = (Float) ht.get(new ControladorAlgo.TableroHash(t2, color_ultima_jugada));
+					if (valor_ya_calculado != null) {
+						//Si el valor ya ha sido calculado por otra rama, estará almacenado en la tabla de hash y no es necesario repetir cálculos.
+						ph.heur = valor_ya_calculado;
+					} else {
+						if (heuristico == ControladorAlgoHeur.ESTOCASTICO) {
+							ph.heur = ControladorAlgoHeur.heuristicoEstocastico(t2, color_ultima_jugada);
+						} else {
+							ph.heur = ControladorAlgoHeur.heuristicoDistancia(t2, color_ultima_jugada, tiempo_fin);
+						}
+						ht.put(new ControladorAlgo.TableroHash(t2, color_ultima_jugada), new Float(ph.heur));
+					}
+					pha.add(ph);
+				} catch (Exception e) {
+					System.err.println("expand1: " + e.getMessage());
+				}
+			}
+			try {
+				vacias2 = ControladorAlgo.seleccionar2(pha, ramificacion);
+			} catch (Exception e) {
+				System.err.println("expand2: " + e.getMessage());
+			}
+			//}
+			this.hijos = new TreeNode[vacias2.size()];
+			for (int i = 0; i < vacias2.size(); ++i) {
+				try {
+					Tablero t2 = t.clon();
+					t2.poner_ficha(vacias2.get(i).p.getx(), vacias2.get(i).p.gety(), nuevo_color);
+					this.hijos[i] = new TreeNode(t2, vacias2.get(i).p.getx(), vacias2.get(i).p.gety(), nuevo_color, System.currentTimeMillis() < tiempo_fin, tiempo_fin);
+					this.hijos[i].valor = vacias2.get(i).heur;
+				} catch (Exception e) {
+					System.err.println("expand: " + e.getMessage());
+				}
+			}
+		}
+
+		/**
+		 * Selecciona el mejor de sus hijos.
+		 *
+		 * @return El mejor de sus hijos.
+		 *//*
+		private TreeNode select() {
+			TreeNode selected = null;
+			double bestValue = Double.NEGATIVE_INFINITY;
+			for (TreeNode c : hijos) {
+				//Función compleja
+				//double uctValue = c.valor / (c.nVisitas + EPSILON)
+				 + Math.sqrt(Math.log(nVisitas + 1) / (c.nVisitas + EPSILON))
+				 + new Random().nextDouble() * EPSILON;
+				//Función sencilla
+				double uctValue = c.valor / c.nVisitas + new Random().nextDouble() * EPSILON;
+				// small random number to break ties randomly in unexpanded nodes
+				if (uctValue > bestValue) {
+					selected = c;
+					bestValue = uctValue;
+				}
+			}
+			return selected;
+		}*/
+
+		/**
+		 * Retorna si es un nodo hoja (terminal).
+		 *
+		 * @return Si es un nodo hoja (terminal).
+		 *//*
+		private boolean isLeaf() {
+			return hijos == null;
+		}*/
+
+		/**
+		 * Simulación estocástica.
+		 *
+		 * @param tn El nodo sobre el que se va a realizar la simulación.
+		 * @return El valor resultante de la simulación esocástica.
+		 */
+		private double rollOut(TreeNode tn) {
+			try {
+				//El heurístico estocástico realiza simulaciones estocásticas.
+				return ControladorAlgoHeur.heuristicoEstocastico(tn.t, color_heuristico);
+			} catch (Exception e) {
+				System.err.println("heuristicoEstocastico: " + e.getMessage());
+			}
+			return -1; // No se llega nunca, pero es necesario para que compile.
+		}
+
+		/**
+		 * Actualiza un nodo tras una visita.
+		 *
+		 * @param value El nuevo valor del nodo.
+		 */
+		private void updateStats(double value) {
+			if (valor == Float.NEGATIVE_INFINITY) {
+				valor = value;
+			} else {
+				++nVisitas;
+				valor += value;
+			}
+		}
+
+		/**
+		 * Retorna el número de hijos.
+		 *//*
+		private int arity() {
+			return hijos == null ? 0 : hijos.length;
+		}*/
+
+		/**
+		 * Compara 2 instancias de TreeNode. Función heredada de Comparable.
+		 *
+		 * @param t La instancia de TreeNode con la que se quiere comparar.
+		 * @return 1 si t es más pequeño, -1 si es más grande o 0 si són
+		 * iguales.
+		 */
+		@Override
+		public int compareTo(TreeNode t) {
+			if (valor / nVisitas > t.valor / t.nVisitas) {
+				return 1;
+			}
+			if (valor / nVisitas < t.valor / t.nVisitas) {
+				return 1;
+			}
+			return 0;
+		}
+
+		/**
+		 * Duplica una instancia de TreeNode.
+		 *
+		 * @return Una nueva instancia de TreeNode idéntica a la actual.
+		 */
+		private TreeNode clon() {
+			TreeNode t = new TreeNode(this.t, ultima.getx(), ultima.gety(), color_ultima_jugada, false, Long.MAX_VALUE);
+			t.valor = this.valor;
+			t.nVisitas = this.nVisitas;
+			if (this.hijos == null) {
+				t.hijos = null;
+			} else {
+				t.hijos = new TreeNode[this.hijos.length];
+				for (int i = 0; i < t.hijos.length; ++i) {
+					t.hijos[i] = this.hijos[i].clon();
+				}
+			}
+			//t.hijos = this.hijos;
+			return t;
+		}
+	}
+	/**
+	 * Valor usado para deshacer empates.
+	 */
+	private static final double EPSILON = 1e-6;
+	/**
+	 * Raíz del árbol de jugadas.
+	 */
+	private TreeNode raiz = null;
+	/**
+	 * Raíz del árbol de jugadas del turno anterior.
+	 */
+	private TreeNode raiz_anterior = null;
+	/**
+	 * Color del jugador del que se quiere encontrar la jugada más adecuada.
+	 */
+	private int color_heuristico;
+	/**
+	 * El heurístico que se va a usar.
+	 */
+	int heuristico;
+	/**
+	 * El factor de ramificación.
+	 */
+	int ramificacion;
+	/**
+	 * La profundidad máxima a la que se llega a explorar.
+	 */
+	int profundidad;
+	/**
+	 * El tiempo máximo para calcular una jugada.
+	 */
+	float tiempo;
+	/**
+	 * Tabla de hash con los valores heurísticos calculados.
+	 */
+	Hashtable<ControladorAlgo.TableroHash, Float> ht = new Hashtable<ControladorAlgo.TableroHash, Float>();
+
+	/**
+	 * Calcula cuál es la mejor jugada posible.
+	 *
+	 * @return La mejor posición en la que realizar una jugada.
+	 */
+	public Posicion jugar() {
+		long tiempo_fin = -1;
+		if(this.tiempo != -1)
+			tiempo_fin = System.currentTimeMillis() + (long) (this.tiempo * 1000);
+		ArrayList<Posicion> vacias = raiz.t.getCasillasVacias();
+		ArrayList<ControladorAlgo.PosicionHeur> pha = new ArrayList<ControladorAlgo.PosicionHeur>();
+		for (int i = 0; i < vacias.size(); ++i) {
+			ControladorAlgo.PosicionHeur ph = new ControladorAlgo.PosicionHeur();
+			ph.p = vacias.get(i);
+			try {
+				Tablero t2 = raiz.t.clon();
+				t2.poner_ficha(ph.p.getx(), ph.p.gety(), color_heuristico);
+				if(i > 0 && this.tiempo != -1 && System.currentTimeMillis() > tiempo_fin) {
+					ph.heur = Float.NEGATIVE_INFINITY;
+				} else {
+					if (heuristico == ControladorAlgoHeur.ESTOCASTICO) {
+						ph.heur = ControladorAlgoHeur.heuristicoEstocastico(t2, color_heuristico);
+					} else {
+						ph.heur = ControladorAlgoHeur.heuristicoDistancia(t2, color_heuristico, tiempo_fin);
+					}
+				}
+			} catch(Exception e) {
+				System.err.println("mc jugar: " + e.getMessage());
+			}
+			pha.add(ph);
+		}
+		//pha = arraylist de posicionHeur de todas las casillas vacías
+
+		try {
+			vacias = ControladorAlgo.seleccionar(pha, Math.min(ramificacion + profundidad, vacias.size()));
+		} catch (Exception e) {
+			System.err.println("seleccionar: " + e.getMessage());
+		}
+
+
+		//ejecutamos el algoritmo MCTS
+		raiz.mc(tiempo_fin, profundidad, new ArrayList<TreeNode>(), vacias);
+		int max = 0;
+		//después seleccionamos el hijo con mayor valor
+		for (int i = 1; i < raiz.hijos.length; ++i) {
+			if (raiz.hijos[i].valor > raiz.hijos[max].valor) {
+				max = i;
+			}
+		}
+		return raiz.hijos[max].ultima;
+	}
+
+	/**
+	 * Creadora.
+	 *
+	 * @param t	La distribución del tablero.
+	 * @param color	El color del jugador.
+	 * @param heuristico El heurístico a usar.
+	 * @param profundidad La profundidad máxima a la que se llegará.
+	 * @param ramificacion El factor de ramificación que se usará.
+	 * @param tiempo El tiempo máximo que estará ejecutándose la función.
+	 * @throws Exception Si el color es incorrecto.
+	 * @throws Exception Si el heurístico es incorrecto.
+	 * @throws Exception Si el tiempo es incorrecto.
+	 */
+	public ControladorAlgoMonteCarlo(Tablero t, int color_heuristico, int color_jugador, int heuristico, int profundidad, int ramificacion, float tiempo) throws Exception {
+		if (color_heuristico != 1 && color_heuristico != 2) {
+			throw new Exception("Color heurístico incorrecto: " + color_heuristico);
+		}
+		if (color_jugador != 1 && color_jugador != 2) {
+			throw new Exception("Color jugador incorrecto: " + color_jugador);
+		}
+		if (heuristico != ControladorAlgoHeur.ESTOCASTICO && heuristico != ControladorAlgoHeur.DISTANCIA) {
+			throw new Exception("Heurístico incorrecto: " + heuristico);
+		}
+		if (tiempo < -1 || tiempo == 0) {
+			throw new Exception("Tiempo incorrecto: " + tiempo);
+		}
+		this.tiempo = tiempo;
+		//le damos algo de tiempo de margen
+		if (this.tiempo > 1) {
+			--this.tiempo;
+		} else if (this.tiempo != -1) {
+			this.tiempo = (float) 0;
+		}
+		//this.tiempo = (float)0.5;
+		raiz = new TreeNode(t.clon(), -5, -5, color_jugador, true, 0);
+		this.heuristico = heuristico;
+		this.color_heuristico = color_heuristico;
+		this.profundidad = profundidad;
+		this.ramificacion = ramificacion;
+	}
+
+	/**
+	 * Actualizar el tablero después de que se haya realizado un movimiento
+	 * (actualiza l raíz del árbol de jugadas).
+	 *
+	 * @param x La coordenada x del movimiento que se ha realizado.
+	 * @param y La coordenada y del movimiento que se ha realizado.
+	 * @param color El color de la ficha correspondiente al movimiento.
+	 */
+	public void movimiento(int x, int y, int color) throws Exception {
+		raiz_anterior = raiz.clon();
+
+		//Si la raíz no tiene hijos (es un nodo no expandido), se le crea uno.
+		if (raiz.hijos == null) {
+			//try {
+			Tablero t2 = raiz.t.clon();
+			t2.poner_ficha(x, y, color);
+			raiz = new TreeNode(t2, x, y, color, true, 0);
+			return;
+			//} catch (Exception e) {
+			//	System.err.println("poner_ficha: " + e.getMessage());
+			//}
+		}
+		//Se busca al hijo correspondiente.
+		for (int i = 0; i < raiz.hijos.length; ++i) {
+			//el hijo adecuado pasa a ser la raíz del árbol.
+			try {
+				if (raiz.hijos[i].t.getcasilla(x, y).get_color_ficha() == color) {
+					raiz = raiz.hijos[i];
+					break;
+				}
+			} catch (Exception e) {
+				System.err.println("getcasilla: " + e.getMessage());
+			}
+			//si no existe el hijo adecuado, se crea y pasa a ser la raíz.
+			if (i == raiz.hijos.length - 1) {
+				try {
+					Tablero t2 = raiz.t.clon();
+					t2.poner_ficha(x, y, color);
+					raiz = new TreeNode(t2, x, y, color, true, 0);
+					break;
+				} catch (Exception e) {
+					System.err.println("poner_ficha2: " + e.getMessage());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Transforma el árbol a tipos básicos.
+	 *
+	 * @return El subárbol desde el TreeNode.
+	 */
+	public float[] getArbol() {
+		ArrayList<Float> al = new ArrayList<Float>();
+		getArbolAux(raiz_anterior, al);
+		float[] ret = new float[al.size()];
+		for (int i = 0; i < ret.length; ++i) {
+			ret[i] = al.get(i);
+		}
+		return ret;
+	}
+
+	/**
+	 * Función auxiliar para la función getArbol.
+	 *
+	 * @param raiz La raíz del subárbol.
+	 * @param al ArrayList de Floats en la que se guardará el árbol.
+	 */
+	private void getArbolAux(TreeNode nodo, ArrayList<Float> al) {
+		//El árbol se añadirá en preorden
+		//Primero se añade la raíz
+		//Primero el tablero
+		for (int fila = 0; fila < nodo.t.gettamany(); ++fila) {
+			for (int col = 0; col < nodo.t.gettamany(); ++col) {
+				try {
+					al.add((float) nodo.t.getcasilla(col, fila).get_color_ficha());
+				} catch (Exception e) {
+					System.err.println("getArbolAux: " + e.getMessage());
+				}
+			}
+		}
+		//Luego el heurístico
+		al.add((float) (nodo.valor / nodo.nVisitas));
+		//Luego el número de hijos
+		if (nodo.hijos == null) {
+			al.add((float) 0);
+		} else {
+			al.add((float) nodo.hijos.length);
+		}
+		//Y luego se añaden los hijos
+		if (nodo.hijos != null && nodo.hijos.length > 0) {
+			for (TreeNode h : nodo.hijos) {
+				getArbolAux(h, al);
+			}
+		}
+	}
+
+	/**
+	 * Reinicia el árbol de jugadas.
+	 *
+	 * @param t El nuevo tablero.
+	 */
+	public void reset(Tablero t, int color_jugador) {
+		this.raiz = new TreeNode(t, -5, -5, color_jugador, true, 0);
+	}
+}

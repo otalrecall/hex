@@ -1,0 +1,170 @@
+package dominio;
+/**
+ * Clase que representa un jugador.
+ *
+ * @author Albert Pérez Huertas
+ */
+import java.util.ArrayList;
+
+public class Jugador
+{
+    /**
+     * Indica las fichas que ha puesto en el tablero el Jugador.
+     */
+    private ArrayList<Posicion> fichas;
+    /**
+     * Indica el tiempo que el jugador tiene en la partida.
+     */
+    private int tiempo;
+    /**
+     * Indica el color de las fichas que utiliz el jugador.
+     */
+    private int colorficha;
+    /**
+     * Indica el tiempo inical que empieza el turno del jugador.
+     */
+    private long milisInicio;
+    /**
+     * Indica el tiempo final que termina el turno del jugador.
+     */
+    private long milisFin;
+    /**
+     * Crea un jugador.
+     *
+     * @return	El nuevo jugador.
+     */
+    private long creationtime;
+    /**
+     * Crea un jugador.
+     *
+     * @return	El nuevo jugador.
+     */
+    Jugador() {
+        this.fichas = new ArrayList<Posicion>();
+        this.tiempo=0;
+        this.colorficha=0;
+        this.creationtime=System.currentTimeMillis();
+    }
+    /**
+     * Crea un jugador.
+     *
+     * @param color indica el color en que jugará el jugador
+     * @param temps indica el tiempo inicial en que empezará a jugar el jugador.
+     * @throws llamaremos una excepción si el tiempo representat pel parametre temps és negatiu.
+     * @throws llamaremos una excepción si el color es diferente a 1 o a 2.
+     * @return	El nuevo jugador.
+     */
+    Jugador(int color, int temps) throws Exception {
+        this.fichas = new ArrayList<Posicion>();
+	if(temps < 0) throw new Exception("Error: el temps no pot ser inferior a 0");
+        this.tiempo=temps;
+        if(color < 1 && color > 2) throw new Exception("Error: color del jugador ha de ser 1 o 2");
+	this.colorficha=color;
+    }
+    /**
+     * Devuelve las fichas puestas en el tablero por el jugador
+     *
+     * @return	Devuelve un ArrayList de posiciones con las fichas del jugador.
+     */
+    public ArrayList<Posicion> getfichas() {
+	return fichas;
+    }
+        /**
+     * Cambia las fichas puestas en el tablero por el jugador
+     *
+     * @return	Cambia un ArrayList de posiciones con las fichas del jugador.
+     */
+    public void setFichas(ArrayList<Posicion> fichas){
+        this.fichas=fichas;
+    }
+    /**
+     * Devuelve el tiempo que tiene el jugador.
+     *
+     * @return	Devuelve un entero con el tiempo del jugador.
+     */
+    public int gettiempo(){
+        return this.tiempo;
+    }
+    /**
+     * Devuelve el color que tiene el jugador.
+     *
+     * @return	Devuelve un entero con el color del jugador.
+     */
+    public int getcolorficha(){
+        return this.colorficha;
+    }
+    /**
+     * Cambia el color que tiene el jugador.
+     *
+     * @param color indica el color.
+     * @throws llamaremos una excepción si el color es diferente a 1 o a 2.
+     * @return	Cambia el color del jugador.
+     */
+    public void setcolor(int color) throws Exception{
+        if(color < 1 && color > 2) throw new Exception("Error: color del jugador ha de ser 1 o 2");
+        this.colorficha=color;
+    }
+    /**
+     * Cambia el tiempo que tiene el jugador.
+     *
+     * @param temps indica el tiempo.
+     * @throws llamaremos una excepción si el tiempo representat pel parametre temps és negatiu.
+     * @return	Cambia el color del jugador.
+     */
+    public void settiempo(int temps) throws Exception {
+        if(temps < 0) throw new Exception("Error: el temps no pot ser inferior a 0");
+        this.tiempo=temps;
+    }
+    /**
+     * Añade una posición de una ficha puesta en el tablero por el jugador en el ArrayList de fichas.
+     *
+     * @param pos indica la posición de la ficha puesta.
+     * @return	Añade la posición en el ArrayList de fichas.
+     *
+     */
+    public void addficha(Posicion pos) {
+	fichas.add(pos);
+    }
+    /**
+     * Quita la última posición del ArrayList de fichas, que és la última ficha puesta en el tablero por el jugador.
+     *
+     * @return	Quita la última posición del ArrayList de fichas.
+     *
+     */
+    public void quitarUltimaFicha() {
+        if (fichas.size() != 0) fichas.remove(fichas.size() - 1);
+    }
+    
+    
+    // stas tres funciones sirven para sumar el tiempo al jugador, los dos primeros capturan el tiempo del sistema en milisegundos i sumar hago la resta 
+    /**
+     * Captura el tiempo en milisegundos cuando el jugador empieza su turno.
+     *
+     * @return	Captura el tiempo en milisegundos cuando el jugador empieza su turno.
+     *
+     */
+    public void empezar_a_sumar_tiempo() {
+	milisInicio = System.currentTimeMillis()-creationtime;
+    }
+    /**
+     * Captura el tiempo en milisegundos cuando el jugador termina su turno.
+     *
+     * @return	Captura el tiempo en milisegundos cuando el jugador termina su turno.
+     *
+     */
+    public void acabar_a_sumar_tiempo() {
+        
+	milisFin = System.currentTimeMillis()- creationtime;
+        sumar_tiempo();
+    }
+    /**
+     * Hace la diferencia entre empezar_a_sumar_tiempo()-acabar_a_sumar_tiempo().
+     *
+     * @return	Hace la diferencia entre empezar_a_sumar_tiempo()-acabar_a_sumar_tiempo().
+     *
+     */
+    private void sumar_tiempo() {
+	long tiempolong = milisFin - milisInicio;
+	tiempo += (int) (tiempolong);
+    }
+}

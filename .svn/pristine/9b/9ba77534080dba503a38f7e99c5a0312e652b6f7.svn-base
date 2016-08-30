@@ -1,0 +1,172 @@
+package Presentacion;
+
+import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import javax.swing.JFileChooser;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ * @author Daniel Otal Rodríguez
+ */
+public class VistaArchivo extends JMenu {
+
+    private ControladorVistaPartida partida;
+    private ControladorVistaJuego contJuego;
+    private ControladorVistaConfig config;
+    private boolean permitido;
+    private VistaTablero tablero;
+    private JMenuItem guardarPartida;
+
+    /**
+     * Se crea la vista de archivo en cuestión
+     *
+     * @param partida Controlador de las acciones sobre partida
+     * @param menu La vista del menú principal
+     * @param tablero La vista del tablero donde se juega la partida
+     * @return La vista archivo
+     */
+    public VistaArchivo(ControladorVistaPartida partida, ControladorVistaJuego contJuego, ControladorVistaConfig config) {
+        super("Archivo");
+        System.out.println("he creado vistaarchivo");
+        this.partida = partida;
+        this.contJuego = contJuego;
+        this.config = config;
+
+        JMenuItem[] juego = {new JMenuItem("Nueva partida"), new JMenuItem("Nueva partida predeterminada"),
+            new JMenuItem("Cargar partida"), new JMenuItem("Guardar partida"),
+            new JMenuItem("Salir de la partida")};
+        for (int i = 0; i < juego.length; i++) {
+            this.add(juego[i]);
+            juego[i].addActionListener(new GestorMenu(i));
+        }
+        guardarPartida = juego[3];
+        if (config.getEsPred() && !tablero.getPredIniciada()) {
+            Color color = new Color(172, 172, 172);
+            juego[3].setForeground(color);
+            permitido = false;
+        } else if (!config.getEsPred() && !config.getPartidaIniciada()) {
+            Color color = new Color(172, 172, 172);
+            juego[3].setForeground(color);
+            permitido = false;
+        } else {
+            Color color = new Color(0, 0, 0);
+            juego[3].setForeground(color);
+            permitido = true;
+        }
+    }
+
+    private class GestorMenu implements ActionListener {
+
+        private int Indice;
+
+        public GestorMenu(int indice) {
+            Indice = indice;
+
+        }
+
+        /**
+         * Rutina que hace de listener para cada opción
+         */
+        public void actionPerformed(ActionEvent e) {
+
+            switch (Indice) {
+                case 0:
+                    /*if (partida.getDurContrarreloj() != 0) {
+                     tablero.detenerTimer();
+                     }*/
+                    config.setEsPred(false);
+                    config.habilitarConfig();
+                    contJuego.preparaNewGame();
+                    partida.visibilidadVistaTitulo(true);
+                    contJuego.visibilidadVistaTablero(false);
+                    contJuego.setVisiblidadArbolIA();
+                    break;
+                case 1:
+                    config.setEsPred(true);
+                    config.habilitarConfig();
+                    contJuego.preparaNewGame();
+                    partida.visibilidadVistaTitulo(true);
+                    contJuego.visibilidadVistaTablero(false);
+                    contJuego.setVisiblidadArbolIA();
+
+                    /*contJuego.preparaNewGame();
+                     UtilConfiguracion utilConfig = new UtilConfiguracion();
+                     config.comenzarPartida(utilConfig, true, false, null);
+                     partida.visibilidadVistaTitulo(false);
+                     contJuego.visibilidadVistaTablero(true);
+                     config.setUtilConfig(utilConfig);*/
+                    break;
+                case 2:
+                    cargarPartida();
+                    break;
+                case 3:
+                    if (permitido) {
+                        guardarPartida();
+                    }
+                    break;
+                case 4:
+                    System.exit(0);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Rutina para guardar la partida
+     */
+    private void guardarPartida() {
+        JFileChooser selectorArchivo = new JFileChooser();
+        selectorArchivo.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        selectorArchivo.setCurrentDirectory(new File("."));
+        int resultado = selectorArchivo.showSaveDialog(this);
+        if (resultado == JFileChooser.APPROVE_OPTION) {
+            String ruta = selectorArchivo.getSelectedFile().getPath();
+            try {
+                partida.guardarPartida(ruta);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Rutina para cargar una nueva partida
+     */
+    private void cargarPartida() {
+        /* Si se detiene el timer no se puede volver a restaurar y se tiene tiempo infinito durante un turno.
+         * De todas maneras, si se va a cargar una partida da igual lo que pase en la actual.
+         * if (partida.getDurContrarreloj() != 0) {
+         tablero.detenerTimer();
+         }*/
+        JFileChooser selectorArchivo = new JFileChooser();
+        selectorArchivo.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        selectorArchivo.setCurrentDirectory(new File("."));
+        int resultado = selectorArchivo.showOpenDialog(this);
+        if (resultado == JFileChooser.APPROVE_OPTION) {
+            String ruta = selectorArchivo.getSelectedFile().getPath();
+            try {
+                contJuego.preparaNewGame();
+                UtilConfiguracion utilConfig = new UtilConfiguracion();
+                config.comenzarPartida(utilConfig, false, false, ruta);
+                partida.visibilidadVistaTitulo(false);
+                contJuego.visibilidadVistaTablero(true);
+                config.setUtilConfig(utilConfig);
+                config.deshabilitar();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void activarGuardar() {
+        permitido = true;
+        Color color = new Color(0, 0, 0);
+        guardarPartida.setForeground(color);
+    }
+}

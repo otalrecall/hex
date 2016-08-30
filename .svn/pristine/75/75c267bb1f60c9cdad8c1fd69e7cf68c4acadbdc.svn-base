@@ -1,0 +1,390 @@
+package dominio;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Random;
+
+/**
+ * Clase que contiene las implementaciones de los heurísticos.
+ *
+ * @author Àlex Ramírez Gómez
+ */
+public class ControladorAlgoHeur {
+
+	/**
+	 * Identificador del heurístico estocástico.
+	 */
+	public static final int ESTOCASTICO = 0;
+	/**
+	 * Identificador del heurístico basado en distancias.
+	 */
+	public static final int DISTANCIA = 1;
+	/**
+	 * Número de partidas que se simularán en el heurístico estocástico.
+	 */
+	private static final int ESTOCASTICO_N_PARTIDAS = 15;
+	/**
+	 * Constante que representa el lado izquierdo del tablero.
+	 */
+	public static final Posicion IZQUIERDA = new Posicion(-1, -1);
+	/**
+	 * Constante que representa el lado derecho del tablero.
+	 */
+	public static final Posicion DERECHA = new Posicion(-2, -2);
+	/**
+	 * Constante que representa el lado superior del tablero.
+	 */
+	public static final Posicion ARRIBA = new Posicion(-3, -3);
+	/**
+	 * Constante que representa el lado inferior del tablero.
+	 */
+	public static final Posicion ABAJO = new Posicion(-4, -4);
+
+	/**
+	 * Heurístico basado en un proceso estocástico. Simula partidas al azar.
+	 *
+	 * @param t La disposición del tablero.
+	 * @param color El color del jugador del que se desea maximizar el
+	 * heurístico.
+	 * @return El valor heurístico de la situación del tablero
+	 */
+	public static float heuristicoEstocastico(Tablero t, int color) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		float heuristico = 0;
+		ArrayList<Posicion> casillas_vacias = t.getCasillasVacias();
+		for (int i = 0; i < ESTOCASTICO_N_PARTIDAS; ++i) {
+			try {
+				Tablero t2 = t.clon();
+				//juega partidas al azar
+				jugarPartidaAleatoria(t2, color, casillas_vacias);
+				//y cuenta cuántas veces se gana
+				if (ControladorAlgo.partidaGanada(t2) == color) {
+					++heuristico;
+				} //else {
+				//--heuristico;
+				//}
+			} catch (Exception e) {
+				System.err.println("jugarPartidaALeatoria: " + e.getMessage());
+			}
+		}
+		//retorna la proporción de victorias
+		return heuristico / ESTOCASTICO_N_PARTIDAS;
+	}
+
+	/**
+	 * Función que simula partidas aleatorias.
+	 *
+	 * @param t La situación del tablero.
+	 * @param color El color del jugador del que se desea maximizar el
+	 * heurístico.
+	 * @param casillas_vacias Una lista de las posiciones vacías del tablero.
+	 */
+	private static void jugarPartidaAleatoria(Tablero t, int color, ArrayList<Posicion> casillas_vacias) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		Collections.shuffle(casillas_vacias, new Random());
+		for (int i = 0; i < casillas_vacias.size(); ++i) {
+			try {
+				if (color == 1) {
+					color = 2;
+				} else {
+					color = 1;
+				}
+				t.poner_ficha(casillas_vacias.get(i).getx(), casillas_vacias.get(i).gety(), color);
+			} catch (Exception e) {
+				System.err.println("jugarPartidaAleatoria: " + e.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Heurístico basado en la 2-distancia que le falta a un jugador para unir
+	 * los extremos.
+	 *
+	 * @param t La disposición del tablero.
+	 * @param color El color del jugador del que se desea maximizar el
+	 * heurístico.
+	 * @return El valor heurístico de la situación del tablero
+	 * @throws Exception Si el color es incorrecto.
+	 */
+	public static float heuristicoDistancia(Tablero t, int color, long tiempo_fin) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		if (ControladorAlgo.partidaGanada(t) == color) {
+			return 0;
+		}
+		ArrayList<Posicion> vacias = t.getCasillasVacias();
+		if (vacias.size() == 0) {
+			if (ControladorAlgo.partidaGanada(t) == color) {
+				return 0;
+			} else {
+				return Float.NEGATIVE_INFINITY;
+			}
+		}
+		float h = 0;
+		for (Posicion v : vacias) {
+			long twoD = twoDist(t, v, color, tiempo_fin);
+			if(twoD == -1)
+				return Float.NEGATIVE_INFINITY;
+			h += twoD;
+		}
+		//Se multiplica por -1, por que el heurístico se maximiza y la distancia se minimiza
+		return (h / vacias.size()) * -1;
+	}
+
+	/**
+	 * Función que retorna una lista con las casilas vecinas a la misma. Dos
+	 * casillas son vecinas si son adyacentes o hay un camino de fichas del
+	 * color correspondiente que las una.
+	 *
+	 * @param t La disposición del tablero.
+	 * @param p La posición de origen.
+	 * @param color El color (la vecindad varía según el color del jugador).
+	 * @return Una lista con las casillas vecinas a p.
+	 * @throws Exception Si el color es incorrecto.
+	 */
+	public static ArrayList<Posicion> getVecinos(Tablero t, Posicion p, int color) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		boolean[][] tBools = new boolean[t.gettamany()][t.gettamany()];
+		for (int i = 0; i < tBools.length; ++i) {
+			for (int j = 0; j < tBools.length; ++j) {
+				tBools[i][j] = false;
+			}
+		}
+		ArrayList<Posicion> v = getVecinosAux(t, p, color, tBools);
+		return v;
+	}
+
+	/**
+	 * Función auxiliar para calcular las casilas vecinas a una casilla.
+	 *
+	 * @param t La disposición del tablero.
+	 * @param p La posición de origen.
+	 * @param color El color (la vecindad varía según el color del jugador).
+	 * @param tBools Una matriz que indica qué casillas han sido ya visitadas.
+	 * @return Una lista con las casillas vecinas a p.
+	 * @throws Exception Si el color es incorrecto.
+	 */
+	private static ArrayList<Posicion> getVecinosAux(Tablero t, Posicion p, int color, boolean[][] tBools) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		//System.err.println("ENTRANDO: " + p.getx() + ", " + p.gety());
+		ArrayList<Posicion> vecinos = new ArrayList<Posicion>();
+		// Izquierda
+		if (p.getx() == IZQUIERDA.getx() && p.gety() == IZQUIERDA.gety()) {
+			for (int i = 0; i < tBools.length; ++i) {
+				if (!tBools[0][i]) {
+					try {
+						tBools[0][i] = true;
+						//System.err.println("0: " + 0 + ", " + i);
+						if (t.getcasilla(0, i).get_color_ficha() == 0) {
+							vecinos.add(new Posicion(0, i));
+						} else if (t.getcasilla(0, i).get_color_ficha() == color) {
+							vecinos.addAll(getVecinosAux(t, new Posicion(0, i), color, tBools));
+						}
+					} catch (Exception e) {
+					}
+				}
+			}
+		} // Derecha
+		else if (p.getx() == DERECHA.getx() && p.gety() == DERECHA.gety()) {
+			for (int i = 0; i < tBools.length; ++i) {
+				if (!tBools[tBools.length - 1][i]) {
+					try {
+						tBools[tBools.length - 1][i] = true;
+						if (t.getcasilla(tBools.length - 1, i).get_color_ficha() == 0) {
+							vecinos.add(new Posicion(tBools.length - 1, i));
+						} else if (t.getcasilla(tBools.length - 1, i).get_color_ficha() == color) {
+							vecinos.addAll(getVecinosAux(t, new Posicion(tBools.length - 1, i), color, tBools));
+						}
+					} catch (Exception e) {
+					}
+				}
+			}
+		} // Arriba
+		else if (p.getx() == ARRIBA.getx() && p.gety() == ARRIBA.gety()) {
+			for (int i = 0; i < tBools.length; ++i) {
+				if (!tBools[i][0]) {
+					try {
+						tBools[i][0] = true;
+						if (t.getcasilla(i, 0).get_color_ficha() == 0) {
+							vecinos.add(new Posicion(i, 0));
+						} else if (t.getcasilla(i, 0).get_color_ficha() == color) {
+							vecinos.addAll(getVecinosAux(t, new Posicion(i, 0), color, tBools));
+						}
+					} catch (Exception e) {
+					}
+				}
+			}
+		} // Abajo
+		else if (p.getx() == ABAJO.getx() && p.gety() == ABAJO.gety()) {
+			for (int i = 0; i < tBools.length; ++i) {
+				if (!tBools[i][tBools.length - 1]) {
+					try {
+						tBools[i][tBools.length - 1] = true;
+						if (t.getcasilla(i, tBools.length - 1).get_color_ficha() == 0) {
+							vecinos.add(new Posicion(i, tBools.length - 1));
+						} else if (t.getcasilla(i, tBools.length - 1).get_color_ficha() == color) {
+							vecinos.addAll(getVecinosAux(t, new Posicion(i, tBools.length - 1), color, tBools));
+						}
+					} catch (Exception e) {
+					}
+				}
+			}
+		} // Cualquier otra casilla
+		else {
+			tBools[p.getx()][p.gety()] = true;
+			try {
+				for (int i = -1; i <= 1; ++i) {
+					for (int j = -1; j <= 1; ++j) {
+						try {
+							if (i != j && !tBools[p.getx() + i][p.gety() + j]) {
+								//System.err.println("1: " + (p.getx() + i) + ", " + (p.gety() + j));
+								if (t.getcasilla(p.getx() + i, p.gety() + j).get_color_ficha() == 0) {
+									vecinos.add(new Posicion(p.getx() + i, p.gety() + j));
+									tBools[p.getx() + i][p.gety() + j] = true;
+								} else if (t.getcasilla(p.getx() + i, p.gety() + j).get_color_ficha() == color) {
+									vecinos.addAll(getVecinosAux(t, new Posicion(p.getx() + i, p.gety() + j), color, tBools));
+								}
+							}
+						} catch (Exception e) {
+						}
+					}
+				}
+			} catch (Exception e) {
+			}
+		}
+		return vecinos;
+	}
+	/**
+	 * Constatnte usada para en el cálculo de la 2-distancia.
+	 */
+	private static final int INFINITO = 9999;
+
+	/**
+	 * Calcula el potencial 2-dist de una casilla.
+	 *
+	 * @param t La disposición del tablero
+	 * @param p1 La posición de la que hay que calcular el potencial.
+	 * @param color El color (las distancias varían dependiendo del color).
+	 * @returns El potencial de p1.
+	 * @throws Exception Si el color es incorrecto.
+	 */
+	private static int twoDist(Tablero t, Posicion p1, int color, long tiempo_fin) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		int[][] dists = new int[t.gettamany()][t.gettamany()];
+		for (int i = 0; i < dists.length; ++i) {
+			for (int j = 0; j < dists.length; ++j) {
+				dists[i][j] = INFINITO;
+			}
+		}
+		dists[p1.getx()][p1.gety()] = 0;
+		ArrayList<Posicion> vecinos = getVecinos(t, p1, color);
+		for (Posicion v : vecinos) {
+			dists[v.getx()][v.gety()] = 1;
+		}
+		do {
+			if(System.currentTimeMillis() >= tiempo_fin)
+				return -1;
+			ArrayList<Posicion> next = new ArrayList<Posicion>();
+			for (Posicion v : vecinos) {
+				ArrayList<Posicion> vecinos2 = getVecinos(t, v, color);
+				for (Posicion v2 : vecinos2) {
+					if (v2.getx() >= 0 && dists[v2.getx()][v2.gety()] == INFINITO) {
+						twoDistAux2(t, v2, color, dists);
+						next.add(v2);
+					}
+				}
+			}
+			vecinos = next;
+		} while (!vecinos.isEmpty());
+		int res = 0;
+		Posicion lado1 = new Posicion(IZQUIERDA.getx(), IZQUIERDA.gety());
+		Posicion lado2 = new Posicion(DERECHA.getx(), DERECHA.gety());
+		if (color == 2) {
+			lado1 = new Posicion(ARRIBA.getx(), ARRIBA.gety());
+			lado2 = new Posicion(ABAJO.getx(), ABAJO.gety());
+		}
+		ArrayList<Posicion> vecinos_lado = getVecinos(t, lado1, color);
+		int min1, min2;
+		min1 = min2 = INFINITO;
+		for (Posicion v : vecinos_lado) {
+			if (dists[v.getx()][v.gety()] < min1) {
+				min2 = min1;
+				min1 = dists[v.getx()][v.gety()];
+			} else if (dists[v.getx()][v.gety()] < min2) {
+				min2 = dists[v.getx()][v.gety()];
+			}
+		}
+		if (min2 == INFINITO) {
+			res += min1;
+		} else {
+			res += min2;
+		}
+
+		vecinos_lado = getVecinos(t, lado2, color);
+		min1 = min2 = INFINITO;
+		for (Posicion v : vecinos_lado) {
+			if (dists[v.getx()][v.gety()] < min1) {
+				min2 = min1;
+				min1 = dists[v.getx()][v.gety()];
+			} else if (dists[v.getx()][v.gety()] < min2) {
+				min2 = dists[v.getx()][v.gety()];
+			}
+		}
+		if (min2 == INFINITO) {
+			res += min1;
+		} else {
+			res += min2;
+		}
+		return res + 2;
+	}
+
+	/**
+	 * Calcula el potencial 2-dist de una casilla.
+	 *
+	 * @param t La disposición del tablero
+	 * @param p0 La posición de la que se quiere calcular el potencial.
+	 * @param color El color (las distancias varían dependiendo del color).
+	 * @param dists Matriz que almacena la distancia desde p1 hasta la posición
+	 * correspondiente.
+	 * @throws Exception Si el color es incorrecto.
+	 */
+	private static void twoDistAux2(Tablero t, Posicion p0, int color, int[][] dists) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		//Si la distancia ya ha sido calculada
+		if (dists[p0.getx()][p0.gety()] != INFINITO) {
+			return;
+		}
+
+		int min1, min2;
+		min1 = min2 = INFINITO;
+		ArrayList<Posicion> vecinos = getVecinos(t, p0, color);
+		for (Posicion v : vecinos) {
+			int dist;
+			dist = dists[v.getx()][v.gety()];
+			if (dist < min1) {
+				min2 = min1;
+				min1 = dist;
+			} else if (dist < min2) {
+				min2 = dist;
+			}
+		}
+		if (min2 == INFINITO) {
+			dists[p0.getx()][p0.gety()] = min1 + 1;
+		} else {
+			dists[p0.getx()][p0.gety()] = min2 + 1;
+		}
+	}
+}

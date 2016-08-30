@@ -1,0 +1,793 @@
+package dominio;
+
+import Datos.*;
+import java.util.ArrayList;
+import java.util.Stack;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ * @author Daniel Otal Rodríguez
+ */
+public class ControladorPartida {
+
+	/**
+	 * El Tablero en cuestión.
+	 */
+	private Tablero t;
+	private Jugador j1;
+	private Jugador j2;
+	private Jugador j1Pred;
+	private Jugador j2Pred;
+	private ControladorDatosPartida cd;
+	private ControladorConfig cf;
+	private Integer turnos;
+	private Stack<Posicion> estados;
+	private int ganador;
+	private boolean reglasRotas;
+	private int prof1, prof2;
+	private int ram1, ram2;
+
+	/**
+	 * Crea un controlador de partida.
+	 *
+	 */
+	public ControladorPartida() throws Exception {
+
+		cd = new ControladorDatosPartida();
+		cf = new ControladorConfig();
+		if (!cf.getHumano1()) {
+			j1 = new IA(1, 0, 1);
+		} else {
+			j1 = new Humano(1, 0, "juan");
+		}
+		if (!cf.getHumano2()) {
+			j2 = new IA(2, 0, 1);
+		} else {
+			j2 = new Humano(2, 0, "juan");
+		}
+		estados = new Stack<Posicion>();
+		reglasRotas = false;
+	}
+
+	/**
+	 * Comienza una nueva partida
+	 *
+	 * @param tamTablero El tamaño del tablero de la nueva partida
+	 * @exception Devuelve excepción si el tamaño es incorrecto
+	 */
+	public void nuevaPartida(int tamTablero) throws Exception {
+		turnos = 0;
+		ganador = 0;
+		estados.clear();
+		t = new Tablero(tamTablero);
+		j1.settiempo(0);
+		j2.settiempo(0);
+	}
+
+	/**
+	 * Comienza una partida predeterminada
+	 *
+	 * @param tamTablero El tamaño del tablero de la nueva partida
+	 * @exception Devuelve excepción si el tamaño es incorrecto o si no se
+	 * pueden instanciar los jugadores Humano
+	 */
+	public void nuevaPartidaPredeterminada(int tamTablero) throws Exception {
+		reglasRotas = true;
+		turnos = 0;
+		ganador = 0;
+		estados.clear();
+		t = new Tablero(tamTablero);
+		j1.settiempo(0);
+		j2.settiempo(0);
+		j1Pred = j1;
+		j2Pred = j2;
+		j1 = new Humano(1, 0, "campeon");
+		j2 = new Humano(2, 0, "campeon");
+		cf.setHumano1(true);
+		cf.setHumano2(true);
+	}
+
+	/**
+	 * Devuelve los jugadores que han sido configurados para jugar en una
+	 * partida predeterminada
+	 *
+	 * @param jugador El número del jugador
+	 * @return El jugador original de la partida predeterminada
+	 */
+	public Jugador getJugadorPred(int jugador) {
+		if (jugador == 1) {
+			return j1Pred;
+		} else {
+			return j2Pred;
+		}
+	}
+
+	/**
+	 * Devuelve la ramificación de la IA
+	 *
+	 * @param jugador El número del jugador
+	 * @return La ramificación de la IA
+	 */
+	public int getRamificacion(int jugador) {
+		if (jugador == 1) {
+			return ram1;
+		} else {
+			return ram2;
+		}
+	}
+
+	/**
+	 * Devuelve la profundidad de la IA
+	 *
+	 * @param jugador El número del jugador
+	 * @return La profundidad de la IA
+	 */
+	public int getProfundidad(int jugador) {
+		if (jugador == 1) {
+			return prof1;
+		} else {
+			return prof2;
+		}
+	}
+
+	/**
+	 * Setter de la ramificación de la IA
+	 *
+	 * @param jugador El número del jugador
+	 * @param ramificacion La ramificación a guardar
+	 */
+	public void setRamificacion(int jugador, int ramificacion) {
+		if (jugador == 1) {
+			this.ram1 = ramificacion;
+		} else {
+			this.ram2 = ramificacion;
+		}
+	}
+
+	/**
+	 * Setter de la profundidad de la IA
+	 *
+	 * @param jugador El número del jugador
+	 * @param profundidad La profundidad a guardar
+	 */
+	public void setProfundidad(int jugador, int profundidad) {
+		if (jugador == 1) {
+			this.prof1 = profundidad;
+		} else {
+			this.prof2 = profundidad;
+		}
+	}
+
+	/**
+	 * Al jugador CPU se le asigna un nivel de dificultad
+	 *
+	 * @param jugador El número del jugador
+	 * @param dificultad La dificultad del jugador, entre el rango de números 1,
+	 * 2 y 3, siendo el 1 la más fácil y el 3 la más difícil
+	 * @exception Lanza excepción si la dificultad es distinta de 1, 2 ó 3, o si
+	 * el jugador no es CPU
+	 */
+	public void setDificultat(int jugador, int dificultat) throws Exception {
+		if (jugador == 1 && !cf.getHumano1()) {
+			((IA) j1).setdificultat(dificultat);
+
+		} else if (jugador == 2 && !cf.getHumano2()) {
+			((IA) j2).setdificultat(dificultat);
+		} else {
+			throw new Exception("El jugador " + jugador + " no és IA");
+		}
+	}
+
+	/**
+	 * Al jugador humano se le asigna un nombre identificador
+	 *
+	 * @param jugador El número del jugador
+	 * @param nom El nombre que identificará al jugador
+	 * @exception lanza excepción si el nombre es superior a 25 carácteres o no
+	 * tiene ningún carácter, o si el jugador no es humano
+	 */
+	public void setNom(int jugador, String nom) throws Exception {
+		if (jugador == 1 && cf.getHumano1()) {
+			((Humano) j1).setNombre(nom);
+		} else if (jugador == 2 && cf.getHumano2()) {
+			((Humano) j2).setNombre(nom);
+		} else {
+			throw new Exception("El jugador " + jugador + " no és humà");
+		}
+	}
+
+	/**
+	 * Guarda el ganador de la partida
+	 *
+	 * @param El número del jugador ganador
+	 */
+	public void setGanador(int numJugador) {
+		ganador = numJugador;
+	}
+
+	/**
+	 * Retorna el numero del jugador ganador de la partida, o 0 si no la ha
+	 * ganado nadie
+	 *
+	 * @return El jugador que ha ganado
+	 */
+	public int getGanador() {
+		return ganador;
+	}
+
+	/**
+	 * Retorna si ha habido un cambio de fichas por la regla de la tarta
+	 *
+	 * @return Booleano que indica si ha efectuado el cambio de la regla de la
+	 * tarta
+	 */
+	public boolean getCambio() {
+		return cf.getCambio();
+	}
+
+	public void setCambio(boolean e) {
+
+		cf.setCambio(e);
+	}
+
+	/**
+	 * Retorna si se ha habilitado o no la ayuda en la partida
+	 *
+	 * @return Booleano que indica si se ha habilitado o no la ayuda en la
+	 * partida
+	 */
+	public boolean getHelp() {
+		return cf.getAyuda();
+	}
+
+	/**
+	 * Retorna la duración de cada turno en una contrarreloj
+	 *
+	 * @return La duración de cada turno en una contrarreloj
+	 * @exception Si no hay contrarreloj
+	 */
+	public int getDurTurno() throws Exception {
+		return cf.getDuracionTurno();
+	}
+
+	/**
+	 * Retorna si se ha habilitado o no el deshacer en la partida
+	 *
+	 * @return Booleano que indica si se ha habilitado o no el deshacer en la
+	 * partida
+	 */
+	public boolean getUndo() {
+		return cf.getDeshacer();
+	}
+
+	/**
+	 * Retorna si se ha habilitado o no la regla de la tarta en la partida
+	 *
+	 * @return Booleano que indica si se ha habilitado o no la regla de la tarta
+	 * en la partida
+	 */
+	public boolean getTarta() {
+		return cf.getTarta();
+	}
+
+	/**
+	 * Retorna el tamaño del tablero
+	 *
+	 * @return El tamaño del tablero
+	 */
+	public int getTamTablero() {
+		return t.gettamany();
+	}
+
+	/**
+	 * Incrementa el número de turnos de la partida
+	 *
+	 */
+	public void incrementarTurnos() {
+		++turnos;
+	}
+
+	/**
+	 * Decrementa el número de turnos de la partida
+	 *
+	 */
+	public void decrementarTurnos() {
+		--turnos;
+	}
+
+	/**
+	 * Pop de la pila de jugadas
+	 *
+	 */
+	public void pilaPop() {
+		estados.pop();
+	}
+
+	/**
+	 * Push en la pila de jugadas
+	 *
+	 * @param p La posición a encolar
+	 */
+	public void pilaPush(Posicion p) {
+		estados.push(p);
+	}
+
+	/**
+	 * Devuelve la posición última que se ha jugado
+	 *
+	 * @return La cima de la pila
+	 */
+	public int[] getPilaPeek() {
+		int[] data = new int[2];
+		if (!estados.empty()) {
+			Posicion p = estados.peek();
+			data[0] = p.getx();
+			data[1] = p.gety();
+		} else {
+			data = null;
+		}
+		return data;
+	}
+
+	public boolean primerajugada(int jugador) {
+
+		if (jugador == 1) {
+			return j1.getfichas().size() == 0;
+		} else {
+			return j2.getfichas().size() == 0;
+		}
+	}
+
+	public int[] getultimajugada(int jugador) {
+		int i[] = new int[2];
+		i[0] = -1;
+		i[1] = -1;
+		if (jugador == 1) {
+			if (j1.getfichas().size() > 0) {
+				Posicion o = j1.getfichas().get(j1.getfichas().size() - 1);
+				i[0] = o.getx();
+				i[1] = o.gety();
+			} else {
+				return i;
+			}
+		} else {
+			if (j2.getfichas().size() > 0) {
+				Posicion o = j2.getfichas().get(j2.getfichas().size() - 1);
+				i[0] = o.getx();
+				i[1] = o.gety();
+			} else {
+				return i;
+			}
+		}
+
+		return i;
+
+
+	}
+
+	/**
+	 * Obtiene el jugador 1.
+	 *
+	 * @return Devuelve el jugador 1.
+	 */
+	public Jugador getj1() {
+
+		return j1;
+	}
+
+	/**
+	 * Obtiene el jugador 2.
+	 *
+	 * @return Devuelve el jugador 2.
+	 */
+	public Jugador getj2() {
+
+		return j2;
+	}
+
+	/**
+	 * Obtiene el tablero.
+	 *
+	 * @return Devuelve el tablero.
+	 */
+	public Tablero getTablero() {
+
+		return t;
+	}
+
+	/**
+	 * Guardar los jugador 1
+	 *
+	 * @param o El jugador a guardar.
+	 */
+	public void setj1(Jugador j) {
+
+		this.j1 = j;
+
+	}
+
+	/**
+	 * Guardar los jugador 2
+	 *
+	 * @param o El jugador a guardar.
+	 */
+	public void setj2(Jugador j) {
+
+		this.j2 = j;
+
+	}
+
+	/**
+	 * Guardar el tablero
+	 *
+	 * @param o El tablero a guardar.
+	 */
+	public void setTablero(Tablero t) {
+
+		this.t = t;
+	}
+
+	/**
+	 * Guardar una nueva configuracion de partida
+	 *
+	 * @param p La configuración de la partida
+	 */
+	public void setconfig(Config p) {
+
+		cf.setConfig(p);
+
+	}
+
+	/**
+	 * Obtiene la configuracion.
+	 *
+	 * @return Devuelve la configuracion de la partida.
+	 */
+	public Config getconfig() {
+
+		return cf.getConfig();
+	}
+
+	/**
+	 * Obtiene el turno.
+	 *
+	 * @return Devuelve el turno.
+	 */
+	public int getturnos() {
+
+		return turnos;
+	}
+
+	/**
+	 * Guardar el turno
+	 *
+	 * @param o El turno a guardar.
+	 */
+	public void setturnos(int o) {
+
+		turnos = o;
+	}
+
+	/**
+	 * Obtiene los estados.
+	 *
+	 * @return Devuelve los estados.
+	 */
+	public Stack<Posicion> getestados() {
+
+		return estados;
+	}
+
+	/**
+	 * Guardar los estados
+	 *
+	 * @param o Los estados a guardar.
+	 */
+	public void setestados(Stack<Posicion> p) {
+
+		estados = p;
+	}
+
+	/**
+	 * Setter paraintroducir si se han roto o no las reglas para entrar a
+	 * marcadores
+	 *
+	 * @param b Booleano que indica si las reglas se han quebrantado
+	 */
+	public void setReglasRotas(boolean b) {
+		reglasRotas = b;
+	}
+
+	/**
+	 * Devuelve el estado de las reglas para entrar a marcadores
+	 *
+	 * @return Booleano que indica si se han roto o no las reglas
+	 */
+	public boolean getReglasRotas() {
+		return reglasRotas;
+	}
+
+	/**
+	 * Se establece una nueva configuración de partida
+	 *
+	 * @param tarta Indica si la regla de la tarta está habilitada
+	 * @param cambio Indica si se ha realizado un cambio de bandos en la regla
+	 * de la tarta (solo si la regla de la tarta está activada y la partida está
+	 * más allá del segundo turno)
+	 * @param ayuda Indica si las ayudas están habilitadas
+	 * @param deshacer Indica si la opción de deshacer está habilitada
+	 * @param apertura El jugador que realiza la primera jugada
+	 * @param humano1 Si el jugador1 es humano o no
+	 * @param humano2 Si el jugador2 es humano o no
+	 * @param duracion_turno La duración máxima del turno
+	 * @exception Lanza excepción si no se puede realizar correctamente la
+	 * configuración
+	 */
+	public void setConfig(boolean tarta, boolean cambio, boolean ayuda,
+			boolean deshacer, int apertura, boolean humano1, boolean humano2,
+			int tamano, int difIA1, int difIA2, int profIA1, int profIA2,
+			int ramIA1, int ramIA2, String nombre1, String nombre2, int duracion_turno) throws Exception {
+		if (duracion_turno != 0) {
+			cf = new ControladorConfig(tarta, cambio, ayuda, deshacer,
+					apertura, humano1, humano2, duracion_turno, tamano, difIA1,
+					difIA2, profIA1, profIA2, ramIA1, ramIA2, nombre1, nombre2);
+		} else {
+			cf = new ControladorConfig(tarta, cambio, ayuda, deshacer,
+					apertura, humano1, humano2, tamano, difIA1, difIA2, profIA1,
+					profIA2, ramIA1, ramIA2, nombre1, nombre2);
+		}
+		if (ayuda || deshacer || !tarta) {
+			reglasRotas = true;
+		}
+	}
+
+	/**
+	 * Se crea un nuevo jugador para la partida
+	 *
+	 * @param jugador El número del jugador
+	 * @param esHumano Es cierto si el jugador es humano, falso si es CPU
+	 * @exception Lanza excepción si el color de las fichas del jugador es
+	 * distinto de 1 ó 2; si el nombre del jugador es superior a 25 carácteres o
+	 * no tiene nombre; si la dificultad de la IA es distinta de 1, 2 ó 3
+	 */
+	public void setJugador(int jugador, boolean esHumano) throws Exception {
+		if (!esHumano) {
+			if (jugador == 1) {
+				j1 = new IA(1);
+				j1.setcolor(jugador);
+				cf.setHumano1(false);
+			} else {
+				j2 = new IA(1);
+				j2.setcolor(jugador);
+				cf.setHumano2(false);
+			}
+		} else {
+			if (jugador == 1) {
+				j1 = new Humano("Default");
+				j1.setcolor(jugador);
+				cf.setHumano1(true);
+			} else {
+				j2 = new Humano("Default");
+				j2.setcolor(jugador);
+				cf.setHumano2(true);
+			}
+		}
+	}
+
+	/**
+	 * Retorna si el jugador es humano
+	 *
+	 * @param jugador El número del jugador
+	 * @return Devuelve cierto si el jugador es humano y falso si es CPU
+	 */
+	public boolean esHumano(int jugador) {
+		if (jugador == 1) {
+			return cf.getHumano1();
+		} else {
+			return cf.getHumano2();
+		}
+	}
+
+	/**
+	 * Retorna la apertura de la partida
+	 *
+	 * @return Entero del número del jugador que comienza la partida
+	 */
+	public int getAperturaPartida() {
+		return cf.getApertura();
+	}
+
+	/**
+	 * Retorna la dificultad de la IA jugador
+	 *
+	 * @param jugador El número del jugador IA
+	 * @return El número de la dificultad IA, siendo: 1 = Fácil; 2 = Medio; 3 =
+	 * Difícil
+	 * @exception Excepción si el jugador no es una CPU
+	 */
+	public int getDificultat(int jugador) throws Exception {
+		int dificultat;
+		try {
+			if (jugador == 1) {
+				dificultat = ((IA) j1).getdificultat();
+			} else {
+				dificultat = ((IA) j2).getdificultat();
+			}
+		} catch (Exception e) {
+			throw new Exception("El jugador no és una CPU!");
+		}
+		return dificultat;
+
+	}
+
+	/**
+	 * Retorna el nombre del jugador humano
+	 *
+	 * @param jugador El número del jugador humano
+	 * @return El nombre del jugador humano
+	 * @exception Excepción si el jugador no es humano
+	 */
+	public String getNom(int jugador) throws Exception {
+		String nom;
+		try {
+			if (jugador == 1) {
+				nom = ((Humano) j1).getNombre();
+			} else {
+				nom = ((Humano) j2).getNombre();
+			}
+		} catch (Exception e) {
+			throw new Exception("El jugador no és humà!");
+		}
+		return nom;
+	}
+
+	/**
+	 * Carga una partida guardada en memoria.
+	 *
+	 * @param path El path en el que está guardada la partida.
+	 */
+	public void CargarPartida(String path) throws Exception {
+		estados.clear();
+		reglasRotas = true;
+		ganador = 0;
+		cf.cargarConfig(path);
+		this.Cargarestados(path);
+		ArrayList<Integer> o = cd.cargarfichasplayer(path, 1);
+		ArrayList<Posicion> op = new ArrayList<Posicion>();
+		turnos = cd.cargarturnos(path);
+		int ops = cd.cargartamano(path);
+		t = new Tablero(ops);
+		for (int i = 0; i < o.size(); i = i + 2) {
+			Posicion p = new Posicion(o.get(i), o.get(i + 1));
+			op.add(p);
+		}
+		if (cf.getHumano1()) {
+			j1 = new Humano(cd.cargarnombreplayer(path, 1));
+		} else {
+			j1 = new IA(cd.cargartipoIAplayer(path, 1));
+			prof1 = cd.cargarProfPlayer(path, 1);
+			ram1 = cd.cargarRamPlayer(path, 1);
+		}
+		j1.setFichas(op);
+		j1.settiempo(cd.cargartiempoplayer(path, 1));
+
+		j1.setcolor(cd.cargarcolorplayer(path, 1));
+		ArrayList<Integer> o2 = cd.cargarfichasplayer(path, 2);
+		ArrayList<Posicion> op2 = new ArrayList<Posicion>();
+
+		for (int i = 0; i < o2.size(); i = i + 2) {
+			Posicion p = new Posicion(o2.get(i), o2.get(i + 1));
+			op2.add(p);
+		}
+
+		if (cf.getHumano2()) {
+			j2 = new Humano(cd.cargarnombreplayer(path, 2));
+		} else {
+			j2 = new IA(cd.cargartipoIAplayer(path, 2));
+			prof2 = cd.cargarProfPlayer(path, 2);
+			ram2 = cd.cargarRamPlayer(path, 2);
+		}
+		j2.setFichas(op2);
+		j2.settiempo(cd.cargartiempoplayer(path, 2));
+		j2.setcolor(cd.cargarcolorplayer(path, 2));
+	}
+
+	/**
+	 * Guardar una partida en memoria.
+	 *
+	 * @param path El path en el que está guardada la partida.
+	 */
+	public void GuardarPartida(String path) throws Exception {
+		cf.guardarConfig(path);
+		this.GuardarEstados(path);
+		ArrayList<Integer> o = new ArrayList<Integer>();
+		ArrayList<Posicion> op = j1.getfichas();
+		cd.guardarturnos(path, turnos);
+		cd.guardartamano(path, t.gettamany());
+		for (int i = 0; i < op.size(); i++) {
+			Posicion p = op.get(i);
+			o.add(p.getx());
+			o.add(p.gety());
+		}
+		cd.guardarfichasplayer(path, 1, o);
+		cd.guardartiempoplayer(path, 1, j1.gettiempo());
+		cd.guardarcolorplayer(path, 1, j1.getcolorficha());
+		if (cf.getHumano1()) {
+			if (j1 instanceof Humano) {
+				cd.guardarnombreplayer(path, 1, ((Humano) j1).getNombre());
+			} else {
+				throw new Exception(" La configuracion actual es imposible ");
+			}
+		} else {
+			if (j1 instanceof IA) {
+				cd.guardartipoIAplayer(path, 1, ((IA) j1).getdificultat());
+				cd.guardarProfPlayer(path, 1, prof1);
+				cd.guardarRamPlayer(path, 1, ram1);
+			} else {
+				throw new Exception(" La configuracion actual es imposible ");
+			}
+		}
+		ArrayList<Integer> o2 = new ArrayList<Integer>();
+		ArrayList<Posicion> op2 = j2.getfichas();
+
+		for (int i = 0; i < op2.size(); i++) {
+			Posicion p = op2.get(i);
+			o2.add(p.getx());
+			o2.add(p.gety());
+		}
+		cd.guardarfichasplayer(path, 2, o2);
+
+		cd.guardartiempoplayer(path, 2, j2.gettiempo());
+
+		cd.guardarcolorplayer(path, 2, j2.getcolorficha());
+		if (cf.getHumano2()) {
+			if (j2 instanceof Humano) {
+				cd.guardarnombreplayer(path, 2, ((Humano) j2).getNombre());
+			} else {
+				throw new Exception(" La configuracion actual es imposible ");
+			}
+		} else {
+			if (j2 instanceof IA) {
+				cd.guardartipoIAplayer(path, 2, ((IA) j2).getdificultat());
+				cd.guardarProfPlayer(path, 2, prof2);
+				cd.guardarRamPlayer(path, 2, ram2);
+			} else {
+				throw new Exception(" La configuracion actual es imposible ");
+			}
+		}
+	}
+
+	/**
+	 * Carga la pila de turnos
+	 *
+	 * @param path El path en el que está guardada la partida.
+	 */
+	private void Cargarestados(String path) throws Exception {
+
+
+		ArrayList<Integer> o = cd.cargarestados(path);
+		for (int i = o.size(); i > 0; i = i - 2) {
+			Posicion p = new Posicion(o.get(i - 2), o.get(i - 1));
+			estados.push(p);
+		}
+	}
+
+	/**
+	 * Guardar la pila de turnos realizados
+	 *
+	 * @param path El path donde se guardadá la partida.
+	 */
+	private void GuardarEstados(String path) throws Exception {
+		@SuppressWarnings("unchecked")
+		Stack<Posicion> st = (Stack<Posicion>) estados.clone();
+		ArrayList<Integer> o = new ArrayList<Integer>();
+		while (!st.empty()) {
+
+			Posicion p = st.pop();
+			o.add(p.getx());
+			o.add(p.gety());
+		}
+		cd.guardarestados(path, o);
+	}
+}

@@ -1,0 +1,32 @@
+package Presentacion;
+
+import java.awt.GridBagConstraints;
+import javax.swing.JButton;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ */
+public class VistaMenu extends Vista {
+
+	private static final long serialVersionUID = 1L;
+        private JMenuBar mb;
+	private VistaAyuda vd;
+	private VistaArchivo va;
+	private VistaOpciones vo;
+    
+	public VistaMenu(VistaArchivo va) {
+		super();
+		this.va = va;
+                mb = new JMenuBar();
+                vd = new VistaAyuda();
+                
+                mb.add(va);
+		mb.add(vd); 
+                setfill(GridBagConstraints.BOTH   );
+                this.add(mb,configurarGrid(0,0,0,0,1,1,GridBagConstraints.WEST));             
+	}
+        
+}

@@ -1,0 +1,320 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Presentacion;
+
+import dominio.ControladorPartida;
+import java.awt.Font;
+import javax.swing.JLabel;
+
+/**
+ *
+ * @author Otal
+ */
+public class ControladorVistaPartida {
+
+    private ControladorPartida partida;
+    private boolean newGame;
+    private boolean esPred;
+    private String path;
+    private UtilConfiguracion utilConfig;
+    private VistaMenu menu;
+    private VistaArchivo archivo;
+    private VistaTitulo titulo;
+
+    public ControladorVistaPartida() throws Exception {
+    }
+
+    public void crearVistas(ControladorVistaJuego juego, ControladorVistaConfig config) {
+        archivo = new VistaArchivo(this, juego, config);
+        menu = new VistaMenu(archivo);
+        titulo = new VistaTitulo();
+    }
+
+    public VistaMenu getVistaMenu() {
+        return menu;
+    }
+
+    public VistaTitulo getVistaTitulo() {
+        return titulo;
+    }
+
+    public VistaArchivo getVistaArchivo() {
+        return archivo;
+    }
+
+    public void visibilidadVistaTitulo(boolean modo) {
+        if (modo) {
+            titulo.setVisible(true);
+        } else {
+            titulo.setVisible(false);
+        }
+    }
+
+    /**
+     * Determina si una partida es del tipo predeterminada
+     *
+     * @param esPred Booleano que indica si es predeterminada.
+     */
+    public void setEsPred(boolean esPred) {
+        this.esPred = esPred;
+    }
+
+    /**
+     * Retorna si las ayudas están habilitadas.
+     *
+     * @return Indica si las ayudas están habilitadas.
+     */
+    public boolean getHelp() {
+        return partida.getHelp();
+    }
+
+    /**
+     * Retorna si es una partida del tipo predeterminada
+     *
+     * @return Si es una partida del tipo predeterminada
+     */
+    public boolean getEsPred() {
+        return esPred;
+    }
+
+    /**
+     * Determina el path de la partida.
+     *
+     */
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    /**
+     * Determina el path de la partida.
+     *
+     */
+    public void setUtilConfig(UtilConfiguracion utilConfig) {
+        this.utilConfig = utilConfig;
+    }
+
+    /**
+     * Determina si es una partida nueva o si al contrario es una partida
+     * cargada
+     *
+     * @param newGame Si es nuevo juego o no.
+     */
+    public void setNewGame(boolean newGame) {
+        this.newGame = newGame;
+    }
+
+    /**
+     * Crea la partida y la configura correctamente
+     *
+     */
+    public void comenzarPartida() throws Exception {
+        archivo.activarGuardar(true);
+        partida = new ControladorPartida();
+        if (newGame) {
+            if (!esPred) {
+                partida.nuevaPartida(utilConfig.getTam());
+                configurarPartida(utilConfig);
+            } else {
+                configurarPartida(utilConfig);
+                partida.nuevaPartidaPredeterminada(utilConfig.getTam());
+            }
+        } else {
+            partida.CargarPartida(path);
+            actualizarUtilConfig(utilConfig);
+        }
+    }
+
+    /**
+     * Retorna el controlador de la partida.
+     *
+     * @return El controlador de la partida.
+     */
+    public ControladorPartida getPartida() {
+        return partida;
+    }
+
+    /**
+     * Rutina que guarda la partida
+     *
+     * @param path El path donde se guardará la partida
+     * @exception Lanza excepción si el path no es correcto.
+     */
+    public void guardarPartida(String path) throws Exception {
+        partida.GuardarPartida(path);
+    }
+
+    /**
+     * Retorna el numero del jugador ganador de la partida, o 0 si no la ha
+     * ganado nadie
+     *
+     * @return El jugador que ha ganado
+     */
+    public int getGanador() {
+        return partida.getGanador();
+    }
+
+    /**
+     * Retorna el tamaño del tablero.
+     *
+     * @return El tamaño del tablero.
+     */
+    public int getTamTablero() {
+        return partida.getTamTablero();
+    }
+
+    /**
+     * Retorna el número total de turnos de la partida
+     *
+     * @return Número de turnos.
+     */
+    public int getNumTurno() {
+        return partida.getturnos();
+    }
+
+    /**
+     * Retorna si la regla de la tarta está habilitada.
+     *
+     * @return Indica si la regla de la tarta está habilitada.
+     */
+    public boolean getTarta() {
+        return partida.getTarta();
+    }
+
+    /**
+     * Retorna el jugador que realiza la primera jugada (0 si es aleatorio).
+     *
+     * @return El jugador que realiza la primera jugada (0 si es aleatorio).
+     */
+    public int getApertura() {
+        return partida.getAperturaPartida();
+    }
+
+    /**
+     * Retorna si el jugador es humano
+     *
+     * @param jugador El número del jugador
+     * @return Devuelve cierto si el jugador es humano y falso si es CPU
+     */
+    public boolean esHumano(int jugador) {
+        return partida.esHumano(jugador);
+    }
+
+    /**
+     * Retorna la última jugada realizada en la partida.
+     *
+     * @return La posición de la última jugada
+     */
+    public int[] getUltimoMov() {
+        return partida.getPilaPeek();
+    }
+
+    /**
+     * Retorna si la opción de deshacer está habilitada.
+     *
+     * @return Indica si la opción de deshacer estó habilitada.
+     */
+    public boolean getUndo() {
+        return utilConfig.getUndo();
+
+    }
+
+    /**
+     * Retorna la duración de cada turno en una contrarreloj
+     *
+     * @return La duración de cada turno en una contrarreloj
+     * @exception Si no hay contrarreloj
+     */
+    public int getDurContrarreloj() {
+        return utilConfig.getDuracionTurno();
+    }
+
+    /**
+     * Rutina que muestra el jugador que ha ganado la partida
+     *
+     * @param msg La label donde se mostrará el mensaje
+     * @exception Lanza excepción si el jugador no tiene nombre
+     */
+    public void mensajeGanador(JLabel msg) throws Exception {
+        int ganador = partida.getGanador();
+        if (partida.esHumano(ganador)) {
+            msg.setText("¡Has ganado, " + partida.getNom(ganador) + "!");
+        } else {
+            msg.setText("¡Ha ganado la IA " + ganador + "!");
+        }
+        msg.setFont(new Font("Verdana", Font.BOLD, 20));
+    }
+
+    /**
+     * Rutina que se encarga de obtener los datos de configuración y
+     * configurarlos en la partida
+     *
+     * @param utilConfig Datos de configuración
+     * @exception Lanza excepción si los datos de configuración no son correctos
+     */
+    private void configurarPartida(UtilConfiguracion utilConfig) throws Exception {
+        partida.setConfig(utilConfig.getTarta(), false, utilConfig.getHelp(),
+                utilConfig.getUndo(), utilConfig.getApertura(), utilConfig.getEsHum1(),
+                utilConfig.getEsHum2(), utilConfig.getTam(), utilConfig.getDif1(),
+                utilConfig.getDif2(), utilConfig.getProfundidad(1), utilConfig.getProfundidad(2),
+                utilConfig.getRamificacion(1), utilConfig.getRamificacion(2), utilConfig.getNom1(), utilConfig.getNom2(),
+                utilConfig.getDuracionTurno());
+        if (utilConfig.getEsHum1()) {
+            partida.setJugador(1, true);
+            partida.setNom(1, utilConfig.getNom1());
+        } else {
+            partida.setJugador(1, false);
+            partida.setDificultat(1, utilConfig.getDif1());
+            partida.setProfundidad(1, utilConfig.getProfundidad(1));
+            partida.setRamificacion(1, utilConfig.getRamificacion(1));
+        }
+        if (utilConfig.getEsHum2()) {
+            partida.setJugador(2, true);
+            partida.setNom(2, utilConfig.getNom2());
+        } else {
+            partida.setJugador(2, false);
+            partida.setDificultat(2, utilConfig.getDif2());
+            partida.setProfundidad(2, utilConfig.getProfundidad(2));
+            partida.setRamificacion(2, utilConfig.getRamificacion(2));
+        }
+    }
+
+    /**
+     * Actualiza la configuración de utilConfig con la información debida
+     *
+     * @param utilConfig Datos de configuración
+     * @exception Lanza excepción si los datos de configuración no son correctos
+     */
+    private void actualizarUtilConfig(UtilConfiguracion utilConfig) throws Exception {
+        utilConfig.setApertura(partida.getAperturaPartida());
+        utilConfig.setCambio(partida.getCambio());
+        try {
+            utilConfig.setDuracionTurno(partida.getDurTurno());
+        } catch (Exception e) {
+            utilConfig.setDuracionTurno(0);
+        }
+        utilConfig.setHelp(partida.getHelp());
+        utilConfig.setTarta(partida.getTarta());
+        utilConfig.setUndo(partida.getUndo());
+        utilConfig.setTam(partida.getTamTablero());
+        boolean esHum1 = partida.esHumano(1);
+        utilConfig.setHum1(esHum1);
+        if (esHum1) {
+            utilConfig.setNom1(partida.getNom(1));
+        } else {
+            utilConfig.setDif1(partida.getDificultat(1));
+            utilConfig.setRamificacion(1, partida.getRamificacion(1));
+            utilConfig.setProfundidad(1, partida.getProfundidad(1));
+        }
+        boolean esHum2 = partida.esHumano(2);
+        utilConfig.setHum2(esHum2);
+        if (esHum2) {
+            utilConfig.setNom2(partida.getNom(2));
+        } else {
+            utilConfig.setDif2(partida.getDificultat(2));
+            utilConfig.setRamificacion(2, partida.getRamificacion(2));
+            utilConfig.setProfundidad(2, partida.getProfundidad(2));
+        }
+    }
+}

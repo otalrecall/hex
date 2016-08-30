@@ -1,0 +1,732 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Presentacion;
+
+import dominio.Jugador;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.TimerTask;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.*;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ */
+public class VistaTablero extends Vista {
+
+    private int dimension;
+    private GestorCasilla g[][];
+    private JButton b[][];
+    private JHexLayout c;
+    private ControladorVistaPartida partida;
+    private ControladorVistaJuego juego;
+    private boolean partidaAcabada;
+    private JLabel labelInfo, labelTurnoActual, labelTimer;
+    private JButton buttonCPU;
+    private boolean bayuda;
+    private int ayudaInt[];
+    private java.util.Timer timer;
+    private int durTurno;
+    private int contSecs;
+    private Color colorJ1,colorultimaJ1;
+    private Color colorJ2,colorultimaJ2;
+    private Color colorBG;
+    private boolean predIniciada;
+    private Toolbar jt;
+    private JPanel panelTablero;
+    private int ultimafxj1,ultimafyj1;
+    private int ultimafxj2,ultimafyj2;
+    private int ultimafxtarta,ultimafytarta,tartafj;
+    private boolean calculandoIA;
+    public VistaTablero(Toolbar jt) {
+        colorJ1 = new Color(255, 102, 102);
+        colorJ2 = new Color(238, 243, 95);
+        colorBG = new Color(216, 180, 140);
+        colorultimaJ1= new Color(255, 0,0);
+        colorultimaJ2= new Color(255,255,0);
+        this.setBackground(colorBG);
+        labelInfo = new JLabel(" ");
+        labelInfo.setBackground(colorBG);
+        labelInfo.setOpaque(true);
+        labelTimer = new JLabel(" ");
+        labelTimer.setBackground(colorBG);
+        labelTimer.setOpaque(true);
+        labelTurnoActual = new JLabel(" ");
+        labelTurnoActual.setBackground(colorBG);
+        labelTurnoActual.setOpaque(true);
+        buttonCPU = new JButton("Iniciar turno");
+        this.jt  =jt;
+        panelTablero = new JPanel();
+        panelTablero.setBackground(colorBG);
+        ultimafxj1=-1;
+        ultimafyj1=-1;
+        ultimafxj2=-1;
+        ultimafyj2=-1;
+        timer = new java.util.Timer();
+    }
+
+    public void resetTablero( ){
+
+      panelTablero.removeAll();
+      removeAll();
+    }
+    public void setultimajugadas(){
+        
+      int i[] = partida.getultimajugada(1);
+      int j[] = partida.getultimajugada(2);
+      if( i[0]==j[0] && i[1]==j[1] ){
+         if(partida.getApertura()==2){
+           if(i[0] != -1 && i[1] !=-1) b[i[0]][i[1]].setBackground(colorultimaJ1);
+           ultimafxj1= i[0];
+           ultimafyj1= i[1];
+             
+         }else{      
+           if(j[0] != -1 && j[1] !=-1) b[j[0]][j[1]].setBackground(colorultimaJ2); 
+           ultimafxj2= j[0];
+           ultimafyj2= j[1];
+         
+         }
+      }else{
+      if(i[0] != -1 && i[1] !=-1) b[i[0]][i[1]].setBackground(colorultimaJ1);
+      ultimafxj1= i[0];
+      ultimafyj1= i[1];
+      
+      if(j[0] != -1 && j[1] !=-1) b[j[0]][j[1]].setBackground(colorultimaJ2);
+      ultimafxj2= j[0];
+      ultimafyj2= j[1];
+      }
+    }
+
+    public void prepararTablero(int dimension, int ancho, ControladorVistaPartida partida, ControladorVistaJuego juego) {
+         ultimafxj1=-1;
+        ultimafyj1=-1;
+        ultimafxj2=-1;
+        ultimafyj2=-1;
+        ultimafxtarta=-1;
+        ultimafytarta=-1;
+        tartafj=-1;
+        calculandoIA =false;
+        labelInfo.setFont(new Font("Verdana", Font.BOLD, 20));
+        buttonCPU = new JButton("Iniciar turno"); //se tiene que hacer para cada nueva partida esto
+        this.dimension = dimension;
+        this.partida = partida;
+        this.juego = juego;
+        predIniciada = false;
+        bayuda = false;
+        //dimension =2;
+        c = new JHexLayout(dimension, new Insets(-1, -1, -1, -1));
+        Dimension n = new Dimension(ancho, (int) (ancho * 0.5));
+        c.setPrefferedSize(n);
+        c.setMinimumSize(n);
+        labelInfo.setText("");
+        labelTimer.setText("");
+        labelTurnoActual.setText("");
+        add(jt, configurarGrid(0, 0));
+        add(labelInfo, configurarGrid(0, 4));
+        add(labelTimer, configurarGrid(0, 2));
+        add(labelTurnoActual, configurarGrid(0, 1));
+        add(buttonCPU, configurarGrid(0, 5));
+        panelTablero.setLayout(c);
+        setfill(GridBagConstraints.BOTH);
+        setweigth(1,1);
+        add(panelTablero, configurarGrid(0, 3));
+        setfill(GridBagConstraints.NONE);
+        setweigth(0,0);
+
+
+        try {
+            /*juego.actualizarLabelTurno(labelTurnoActual);
+            if (partida.getDurContrarreloj() != 0) timer = new java.util.Timer();
+            else durTurno = 0;
+            if (!partida.getEsPred()) {
+                if (partida.getDurContrarreloj() != 0) {
+                    durTurno = partida.getDurContrarreloj();
+                    if (partida.esHumano(1) || partida.esHumano(2)) {
+                        iniciarTimer(labelTimer);
+                    }
+                }
+            }*/
+
+        if (juego.getPartidaAcabada() == 0) partidaAcabada = false;
+        else {
+            partida.mensajeGanador(labelInfo);
+            partidaAcabada = true;
+        }
+        inicializacasillas();
+        if (!partidaAcabada) {
+            juego.actualizarLabelTurno(labelTurnoActual);
+            if (partida.getDurContrarreloj() != 0) {
+                detenerTimer();
+                timer = new java.util.Timer();
+                labelTimer.setVisible(true);
+                
+            }
+            else durTurno = 0;
+            if (!partida.getEsPred()) {
+                if (partida.getDurContrarreloj() != 0) {
+                    durTurno = partida.getDurContrarreloj();
+                    if (partida.esHumano(1) || partida.esHumano(2)) {
+                        iniciarTimer(labelTimer);
+                    }
+                }
+            }
+            if (!partida.esHumano(1) && !partida.esHumano(2)) {
+                buttonCPU.addActionListener(new ButtonNext());
+            } else if (partida.getEsPred()) {
+                buttonCPU.setText("Comenzar Partida");
+                buttonCPU.addActionListener(new ComenzarPartida());
+                if(!partida.esHumano(juego.getJugadorTurnoActual()))tirarjugador(juego.getJugadorTurnoActual(),-1,-1); 
+            } else {
+                buttonCPU.setVisible(false);
+                if(!partida.esHumano(juego.getJugadorTurnoActual()))tirarjugador(juego.getJugadorTurnoActual(),-1,-1);
+
+            }
+          }
+        }catch(Exception e ){
+          e.printStackTrace();
+        }
+    }
+    private void inicializacasillas(){
+        b = new JButton[dimension][dimension];
+        g = new VistaTablero.GestorCasilla[dimension][dimension];
+
+        for (int i = 0; i < dimension; i++) {
+            for (int j = 0; j < dimension; j++) {
+                if (i == 0) {
+                    if (j == 0) {
+                        b[i][j] = new JHexButton("NW");
+                    } else if (j == dimension - 1) {
+                        b[i][j] = new JHexButton("NE");
+                    } else {
+                        b[i][j] = new JHexButton("N");
+                    }
+                } else if (i == dimension - 1) {
+                    if (j == 0) {
+                        b[i][j] = new JHexButton("SW");
+                    } else if (j == dimension - 1) {
+                        b[i][j] = new JHexButton("SE");
+                    } else {
+                        b[i][j] = new JHexButton("S");
+                    }
+                } else {
+                    if (j == 0) {
+                        b[i][j] = new JHexButton("W");
+                    } else if (j == dimension - 1) {
+                        b[i][j] = new JHexButton("E");
+                    } else {
+                        b[i][j] = new JHexButton();
+                    }
+                }
+                b[i][j].setBackground(Color.WHITE);
+                panelTablero.add(b[i][j]);
+                g[i][j] = new VistaTablero.GestorCasillaNormal(i, j, (partida.esHumano(1) || partida.esHumano(2)));
+                b[i][j].addActionListener(g[i][j]);
+            }
+        }
+
+
+    }
+    private class ComenzarPartida implements ActionListener {
+
+        public ComenzarPartida() {
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            predIniciada = true;
+            juego.comenzarJuegoPred();
+            partida.activarGuardar(true);
+            if (partida.getDurContrarreloj() != 0) {
+                timer = new java.util.Timer();
+                durTurno = partida.getDurContrarreloj();
+                if ((partida.esHumano(1) || partida.esHumano(2)) && !partidaAcabada) {
+                    iniciarTimer(labelTimer);
+                    
+                }
+            } else {
+                durTurno = 0;
+            }
+            //System.out.println("la partida ha acabado ? "+ partidaAcabada);
+            if (!partida.esHumano(1) && !partida.esHumano(2)&& !partidaAcabada) {
+                buttonCPU.setText("Iniciar turno");
+                buttonCPU.removeActionListener(this);
+                buttonCPU.addActionListener(new VistaTablero.ButtonNext());
+            } else {
+                buttonCPU.setVisible(false);
+                int numjug = juego.getJugadorTurnoActual();
+
+                if (!partida.esHumano(numjug )) {
+                    try{
+                    tirarjugador(numjug,-1,-1);
+                    }catch(Exception w){
+                        w.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+    private class ButtonNext implements ActionListener {
+
+        public ButtonNext() {
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            try{
+                
+                if (!partidaAcabada && !calculandoIA) {
+                    if (partida.getDurContrarreloj() != 0) {
+                        iniciarTimer(labelTimer);
+                    }
+
+                    tirarjugador(juego.getJugadorTurnoActual(),-1,-1);
+                }
+            }catch(Exception q){
+                q.printStackTrace();
+
+            }
+        }
+    }
+
+
+
+    abstract class GestorCasilla implements ActionListener {
+
+        protected int Fila;
+        protected int Columna;
+        protected boolean Permitido;
+
+        public GestorCasilla(int columna, int fila) {
+            Columna = columna;
+            Fila = fila;
+            Permitido = true;
+        }
+
+        abstract public void actionPerformed(ActionEvent e);
+
+        public boolean ObtenerPermitido() {
+            return Permitido;
+        }
+
+        public void SeleccionarPermitido(boolean permitido) {
+            Permitido = permitido;
+        }
+    }
+
+    private class GestorCasillaNormal extends VistaTablero.GestorCasilla {
+
+        public GestorCasillaNormal(int columna, int fila) {
+            super(columna, fila);
+
+        }
+
+        public GestorCasillaNormal(int columna, int fila, boolean permitido) {
+            super(columna, fila);
+            Permitido = permitido;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Runnable miRunnable = new Runnable() {
+                public void run() {
+                    if (partida.esHumano(juego.getJugadorTurnoActual())) {
+                        if (Permitido && !partidaAcabada) {
+                            jugar(Columna, Fila);
+                            Permitido = false;
+                        } else if (partida.getNumTurno() == 1 && partida.getTarta() && (partida.esHumano(1) || partida.esHumano(2))) {
+                            jugar(Columna, Fila);
+                            labelInfo.setText("Tarta efectuada");
+                            Permitido = false;
+                        }
+                    }
+                }
+            };
+            Thread hilo = new Thread(miRunnable);
+            hilo.start();
+        }
+    }
+
+
+
+
+    private void jugar(int Columna, int Fila) {
+        if (bayuda) {
+            b[ayudaInt[0]][ayudaInt[1]].setBackground(Color.white);
+            bayuda = false;
+        }
+        try {
+            realizapackmovimientos(Columna, Fila);
+        } catch (Exception w) {
+            w.printStackTrace();
+        }
+
+    }
+
+    public void pedirAyuda() {
+        try {
+            if (!partidaAcabada) {
+                if (bayuda) {
+                    b[ayudaInt[0]][ayudaInt[1]].setBackground(Color.WHITE);
+                }
+                ayudaInt = juego.help();
+                b[ayudaInt[0]][ayudaInt[1]].setBackground(Color.GRAY);
+                bayuda = true;
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage());
+        }
+    }
+
+    public void deshacerJugada(int n) {
+        if (partida.getUndo()) {
+            try {          
+                while (n > 0) {
+
+                    try{
+                    if(partida.getNumTurno() == 3 && partida.getCambio() ) {   
+                        juego.undo2(1);
+                        int j = juego.getJugadorTurnoActual();
+                       
+                        quitarfichaTablero(j,-1,-1);
+                        
+                        
+                        
+                    }else if(partida.getNumTurno()== 2 && partida.getCambio()){ 
+                      int j = juego.getJugadorTurnoActual(); 
+                     labelInfo.setText("");
+                          int p[] = partida.getultimajugada(j);
+                          ultimafxtarta = p[0];
+                          ultimafytarta = p[1];
+                          tartafj = j;
+                       
+                       juego.undo2(1);
+                       quitarfichaTablero(tartafj,-1,-1 ); 
+                    }else{
+                        juego.undo2(1);
+                        int j = juego.getJugadorTurnoActual();
+                        int p[] = partida.getultimajugada(j);
+                        quitarfichaTablero(j,p[0],p[1]);
+                    }
+                                                                               
+                   
+                    }catch(Exception r){
+                         JOptionPane.showMessageDialog(this, r.getMessage());
+                         n=0;
+                    }
+                    --n;
+                }
+                if (partidaAcabada) {
+                    partidaAcabada = false;
+                    labelInfo.setText("");
+                }
+
+                if (partida.getDurContrarreloj() != 0) {
+                    labelTimer.setVisible(true);
+                    detenerTimer();
+                    iniciarTimer(labelTimer);
+                }
+                juego.actualizarLabelTurno(labelTurnoActual);
+               if(!partida.esHumano(juego.getJugadorTurnoActual()))
+                tirarjugador(juego.getJugadorTurnoActual(),-1,-1);
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, e.getMessage());
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Deshacer no está activado");
+        }
+    }
+
+    public void setTablero(int[][] hola) {
+        for (int i = 0; i < dimension; ++i) {
+            for (int j = 0; j < dimension; ++j) {
+                if (hola[i][j] == 1) {
+                    b[i][j].setBackground(colorJ1);
+                    g[i][j].SeleccionarPermitido(false);
+                } else if (hola[i][j] == 2) {
+                    b[i][j].setBackground(colorJ2);
+                    g[i][j].SeleccionarPermitido(false);
+                } else {
+                    b[i][j].setBackground(Color.white);
+                }
+            }
+        }
+    }
+
+
+
+    /**
+     * El temporizador salta cada segundo para comprobar si se ha superado la
+     * duración límite del turno, para pasar de turno al hacerlo
+     */
+    class temporizador extends TimerTask {
+
+        private JLabel tiempo;
+        private JLabel turnos;
+
+        private temporizador(JLabel tiempo, JLabel turnos) {
+            this.tiempo = tiempo;
+            this.turnos = turnos;
+            this.tiempo.setFont(new Font("Verdana", Font.BOLD, 32));
+        }
+
+        @Override
+        public void run() {
+            tiempo.setText(Integer.toString(contSecs));
+            if (contSecs <= 0) {
+                int jugador = juego.getJugadorTurnoActual();
+              int  siguientejugador= jugador;
+                if(jugador ==1 ){
+                    siguientejugador=2;     
+                }else if( jugador ==2){
+                    siguientejugador=1; 
+                }
+                try {
+                   juego.actualizarLabelTurno(turnos);
+                   detenerTimer();
+                   if (!partidaAcabada) iniciarTimer(tiempo);
+                   if (!partida.esHumano(jugador)) tirarjugador(jugador,-1,-1);
+                   else {
+                    tirarrandomHum(jugador);
+                    if(!partida.esHumano(siguientejugador)){
+                       tirarjugador(siguientejugador,-1,-1);
+                    }
+                   }
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            } else {
+                --contSecs;
+            }
+
+        }
+    }
+
+    public void detenerTimer() {
+        timer.purge();
+        timer.cancel();
+        System.out.println(System.currentTimeMillis() + " detengo el timer");
+    }
+
+    private void iniciarTimer(JLabel tiempo) {
+        if (durTurno != 0) {
+            System.out.println(System.currentTimeMillis() + " enciendo timer");
+            contSecs = durTurno;
+            timer = new java.util.Timer();
+            timer.scheduleAtFixedRate(new VistaTablero.temporizador(labelTimer, labelTurnoActual), 0, 1000);
+        }
+    }
+
+    private void threading(int numturno) {
+        if (!partida.esHumano(numturno)) {
+            Runnable miRunnable = new Runnable() {
+                public void run() {
+                    try {
+                        int njug = juego.getJugadorTurnoActual();
+                        juego.realizarMovimientoIA(labelInfo);
+                        int o[] = partida.getUltimoMov();                    
+                        ponerfichaTablero(njug,o[0],o[1]);
+                        if (partida.getDurContrarreloj() != 0) {
+                            detenerTimer();
+                            if (!partida.esHumano(1) && !partida.esHumano(2)) {
+                                labelTimer.setText("");
+                            }
+                        }
+                        if (partida.getGanador() == 0) {
+                            juego.actualizarLabelTurno(labelTurnoActual);
+                            if (partida.getDurContrarreloj() != 0) {
+                                if (partida.esHumano(1) || partida.esHumano(2)) {
+                                    iniciarTimer(labelTimer);
+                                }
+                            }
+                        } else {
+                            juego.acabarPartida();
+                            partida.mensajeGanador(labelInfo);
+                            partidaAcabada = true;
+                            labelTimer.setText("");
+                        }
+                        
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                    calculandoIA=false;
+                }
+            };
+            Thread hilo = new Thread(miRunnable);
+            hilo.start();
+          
+        }
+    }
+
+    private void realizapackmovimientos(int Columna, int Fila) throws Exception {
+        if ("Tarta efectuada".equals(labelInfo.getText())) {
+            labelInfo.setText("");
+        }
+        int i = juego.getJugadorTurnoActual();
+        int j =1;
+        if (i == 1) j = 2;
+        else if (i == 2) j = 1;
+        tirarjugador(i,Columna,Fila);
+        if (!partida.esHumano(j)) tirarjugador(j,-1,-1);
+
+    }
+
+    public boolean getPredIniciada() {
+        return predIniciada;
+    }
+    public void tirarjugador(int jugador,int Columna, int Fila)throws Exception {
+        if(partida.getGanador() == 0){
+           
+            if(partida.esHumano(jugador) ) {
+                juego.realizarMovimientoHum(Columna, Fila);
+                ponerfichaTablero(jugador,Columna,Fila);
+            
+            
+            
+                 if (partida.getDurContrarreloj() != 0 ){
+                 if(partida.getEsPred() && predIniciada){
+                    detenerTimer();
+                    labelTimer.setText("");
+                 }else if (!partida.getEsPred() ) {
+                    detenerTimer();
+                    labelTimer.setText(""); 
+                 }
+               } 
+               if (partida.getGanador() == 0) {
+                     juego.actualizarLabelTurno(labelTurnoActual);
+                
+                    if (!partida.esHumano(1)&& !partida.esHumano(2)){
+                    
+                    }else if (partida.getDurContrarreloj() != 0){
+                        if(partida.getEsPred() && predIniciada)iniciarTimer(labelTimer);
+                        else if (!partida.getEsPred() )iniciarTimer(labelTimer);
+                    }
+                }else{
+
+                    juego.acabarPartida();
+                    partida.mensajeGanador(labelInfo);
+                    partidaAcabada = true;
+                    labelTimer.setText("");
+                    if (partida.getDurContrarreloj() != 0 ){
+                        detenerTimer();
+                        labelTimer.setVisible(false);
+                    }
+                
+                
+                }
+            }else{
+                calculandoIA =true;
+                threading(jugador);
+            }
+        }
+    }
+    public void quitarfichaTablero(int jugador,int Columna,int Fila){
+     // la columna i la fila son de ficha 2 posiciones anterior
+           
+        if(jugador == 1 ){
+             if (partida.getNumTurno() == 1 && ultimafxtarta != -1 && ultimafytarta != -1 && tartafj ==1){
+                  b[ultimafxtarta][ultimafytarta].setBackground(colorultimaJ1);
+                  ultimafxj1 = ultimafxtarta;
+                  ultimafyj1 = ultimafytarta;
+                  ultimafxj2 = -1;
+                  ultimafyj2 = -1;
+                  ultimafxtarta=-1;
+                  ultimafytarta=-1;
+                  tartafj=-1;
+             }else{
+
+            if(Columna >=0 && Fila >=0   ) b[Columna][Fila].setBackground(colorultimaJ1);
+            else {
+                Columna = -1;
+                   Fila = -1;
+            }
+            //se pone la ficha que ahora es peultima del color que le pertoca
+           if(ultimafxj1 !=-1  && ultimafyj1 != -1 ){
+              b[ultimafxj1][ultimafyj1].setBackground(Color.white);
+              g[ultimafxj1][ultimafyj1].SeleccionarPermitido(true);            
+           }
+                    
+           ultimafxj1 = Columna;
+           ultimafyj1 = Fila;
+             }    
+        }else if(jugador == 2){
+           if (partida.getNumTurno() == 1 && ultimafxtarta != -1 && ultimafytarta != -1 && tartafj ==2){
+                  b[ultimafxtarta][ultimafytarta].setBackground(colorultimaJ2);
+                  ultimafxj2 = ultimafxtarta;
+                  ultimafyj2 = ultimafytarta;
+                  ultimafxj1 =-1;
+                  ultimafyj1 =-1;
+                  ultimafxtarta=-1;
+                  ultimafytarta=-1; 
+                  tartafj=-1;
+             }else{
+               if(Columna >=0 && Fila >=0  ){
+                   b[Columna][Fila].setBackground(colorultimaJ2);
+                   
+               }
+            //se pone la ficha que ahora es peultima del color que le pertoca
+            if(ultimafxj2 !=-1  && ultimafyj2 != -1 ){
+              b[ultimafxj2][ultimafyj2].setBackground(Color.white);
+              g[ultimafxj2][ultimafyj2].SeleccionarPermitido(true);  
+           
+            }
+           
+            
+            ultimafxj2 = Columna;
+            ultimafyj2 = Fila; 
+           }
+        }      
+       
+    }
+
+
+
+    public void ponerfichaTablero(int jugador,int Columna,int Fila){
+
+        //ponemos la ultima ficha del color intenso para acordarnos donde la pusimos!
+        if(jugador == 1 ){
+           b[Columna][Fila].setBackground(colorultimaJ1);
+           //se pone la ficha que ahora es peultima del color que le pertoca
+           if(ultimafxj1 !=-1  && ultimafyj1 != -1 ){
+              b[ultimafxj1][ultimafyj1].setBackground(colorJ1);
+            }
+           
+           ultimafxj1 = Columna;
+           ultimafyj1 = Fila;
+           if(Columna ==ultimafxj2 && Fila ==ultimafyj2 ){
+               ultimafxj2=-1;
+               ultimafyj2=-1;
+           }
+        }else if(jugador == 2){
+            b[Columna][Fila].setBackground(colorultimaJ2);
+            //se pone la ficha que ahora es peultima del color que le pertoca
+            if(ultimafxj2 !=-1  && ultimafyj2 != -1 ){
+              b[ultimafxj2][ultimafyj2].setBackground(colorJ2);
+            }
+            ultimafxj2 = Columna;
+            ultimafyj2 = Fila;
+            if(Columna ==ultimafxj1 && Fila ==ultimafyj1 ){
+               ultimafxj1=-1;
+               ultimafyj1=-1;
+           }
+        }
+        g[Columna][Fila].SeleccionarPermitido(false);
+    }
+  public void tirarrandomHum(int jugador)throws Exception  {
+      boolean t = false;
+      int x =1,y =1 ;
+
+       while (!t){
+
+         x = (int)  Math.round(Math.random()*(dimension-1));
+         y = (int)  Math.round(Math.random()*(dimension-1));
+         t = g[x][y].ObtenerPermitido();
+       }
+      tirarjugador(jugador,x,y);
+  }
+
+}

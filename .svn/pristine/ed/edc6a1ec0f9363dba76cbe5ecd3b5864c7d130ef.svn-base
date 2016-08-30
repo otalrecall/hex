@@ -1,0 +1,617 @@
+package dominio;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Hashtable;
+
+/**
+ * Clase que contiene los algoritmos de juego.
+ *
+ * @author Àlex Ramírez Gómez
+ */
+public class ControladorAlgo {
+
+	/**
+	 * Función que añade un elemento a un array.
+	 *
+	 * @param org El array.
+	 * @param added El elemento a añadir.
+	 */
+	private static Nodo[] addElement(Nodo[] org, Nodo added) {
+		Nodo[] result = Arrays.copyOf(org, org.length + 1);
+		result[org.length] = added;
+		return result;
+	}
+
+	/**
+	 * Clase que adapta Tablero para ser usado en una tabla de hash.
+	 */
+	public static class TableroHash {
+
+		/**
+		 * El tablero representado como un string. Se usa para calcular el hash
+		 * del tablero.
+		 */
+		public String s;
+
+		/**
+		 * Crea un TableroHash a partir de un Tablero.
+		 *
+		 * @param t El tablero en cuestión.
+		 */
+		TableroHash(Tablero t, int color) {
+			s = new Integer(color).toString();
+			//s = "";
+			for (int i = 0; i < t.gettamany(); ++i) {
+				for (int j = 0; j < t.gettamany(); ++j) {
+					try {
+						s += t.getcasilla(i, j).get_color_ficha();
+					} catch (Exception e) {
+					}
+				}
+			}
+		}
+
+		/**
+		 * Retorna el hash del tablero.
+		 *
+		 * @return El hash del tablero.
+		 */
+		@Override
+		public int hashCode() {
+			return s.hashCode();
+		}
+
+		/**
+		 * Retorna si dos objetos TableroHash son guales.
+		 *
+		 * @param th El TableroHash con el que compararlo.
+		 * @return Si los dos objetos TableroHash son iguales.
+		 */
+		@Override
+		public boolean equals(Object th) {
+			if (!(th instanceof TableroHash)) {
+				return false;
+			}
+			return this.s.equals(((TableroHash) th).s);
+		}
+	}
+
+	/**
+	 * Clase que representa un nodo del árbol de jugadas.
+	 */
+	private static class Nodo {
+
+		/**
+		 * El tablero sobre el que se realiza la jugada.
+		 */
+		public Tablero t;
+		/**
+		 * El valor del tablero.
+		 */
+		public float valor;
+		/**
+		 * Los hijos del nodo.
+		 */
+		public Nodo[] hijos;
+
+		/**
+		 * Crea un nodo a partir de un tablero.
+		 *
+		 * @param t El tablero en cuestión.
+		 * @return El nuevo nodo.
+		 */
+		Nodo(Tablero t) {
+			this.t = t;
+			hijos = new Nodo[0];
+		}
+
+		/**
+		 * Transforma el árbol a tipos básicos.
+		 *
+		 * @return El subárbol desde el Nodo.
+		 */
+		public float[] getArbol() {
+			ArrayList<Float> al = new ArrayList<Float>();
+			this.getArbolAux(al);
+			float[] ret = new float[al.size()];
+			for (int i = 0; i < ret.length; ++i) {
+				ret[i] = al.get(i);
+			}
+			return ret;
+		}
+
+		/**
+		 * Función auxiliar para la función getArbol.
+		 *
+		 * @param al ArrayList de Floats en la que se guardará el árbol.
+		 */
+		private void getArbolAux(ArrayList<Float> al) {
+			//El árbol se añadirá en preorden
+			//Primero se añade la raíz
+			//Primero el tablero
+			for (int fila = 0; fila < t.gettamany(); ++fila) {
+				for (int col = 0; col < t.gettamany(); ++col) {
+					try {
+						al.add((float) t.getcasilla(col, fila).get_color_ficha());
+					} catch (Exception e) {
+					}
+				}
+			}
+			//Luego el heurístico
+			al.add(valor);
+			//Luego el número de hijos
+			al.add((float) hijos.length);
+			//Y luego se añaden los hijos
+			if (hijos != null) {
+				for (Nodo h : hijos) {
+					h.getArbolAux(al);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Clase que contiene una posición dónde poner una ficha y el valor
+	 * heurístico que tendría el tablero si se colocase la ficha en dicha
+	 * posición.
+	 */
+	public static class PosicionHeur implements java.lang.Comparable<PosicionHeur> {
+		/**
+		 * La posición en la que se colocaría la ficha.
+		 */
+		public Posicion p;
+		/**
+		 * El valor heurístico que tendría el tablero.
+		 */
+		public float heur;
+
+		/**
+		 * Función para comparar dos entradas. Heredada de la clase Comparable.
+		 *
+		 * @param p	PosicionHeur con la que se desea comparar.
+		 * @return	1 si el valor de p es mayor, -1 si el valor de p es menor, 0
+		 * si ambas entradas tienen el mismo valor.
+		 */
+		@Override
+		public int compareTo(PosicionHeur p) {
+			if (this.heur == p.heur) {
+				return 0;
+			}
+			if (this.heur < p.heur) {
+				return 1;
+			}
+			if (this.heur > p.heur) {
+				return -1;
+			}
+			return 0;
+		}
+	}
+
+	/**
+	 * Creadora privada para asegurar que la clase no se instancia.
+	 */
+	private ControladorAlgo() {
+	}
+	/**
+	 * Nodo raíz del árbol de jugadas.
+	 */
+	private static Nodo raiz;
+
+	/**
+	 * Transforma el árbol de jugadas a tipos básicos.
+	 *
+	 * @return El árbol de jugadas como un array de floats.
+	 */
+	public static float[] getArbol() {
+		return raiz.getArbol();
+	}
+
+	/**
+	 * Quita un elemento del array.
+	 *
+	 * @param pha El array.
+	 * @param x La coordenada x del elemento a quitar.
+	 * @param y La coordenada y del elemento a quitar.
+	 * @return El array original sin el elemento
+	 */
+	public static ArrayList<Posicion> quitar(ArrayList<Posicion> pha, int x, int y) {
+		ArrayList<Posicion> result = new ArrayList<Posicion>(pha.size() - 1);
+		for(Posicion ph : pha)
+			if(ph.getx() != x || ph.gety() != y)
+				result.add(ph);
+		return result;
+	}
+
+	/**
+	 * Calcula cuál es la mejor jugada posible.
+	 *
+	 * @param t La situación del tablero.
+	 * @param color El color del jugador que realizará la jugada.
+	 * @param heuristico El heurístico que se usará.
+	 * @param profundidad Profundidad máxima a la que llegará minimax.
+	 * @param tiempo Tiempo máximo que estará corriendo la función. Si es -1, no se restringe por tiempo.
+	 * @return La mejor posición en la que realizar una jugada.
+	 */
+	public static Posicion jugar(Tablero t, int color, int heuristico, int profundidad, int ramificacion, float tiempo) throws Exception {
+		if (color != 1 && color != 2) {
+			throw new Exception("Color incorrecto: " + color);
+		}
+		if (profundidad < 0) {
+			throw new Exception("Profundidad incorrecta: " + profundidad);
+		}
+		if (tiempo != -1 && tiempo < 0) {
+			throw new Exception("Tiempo incorrecto: " + tiempo);
+		}
+		float max_valor = Float.NEGATIVE_INFINITY;
+		Posicion max_posicion = null;
+		Hashtable<TableroHash, Float> ht = new Hashtable();
+		raiz = new Nodo(t.clon());
+		ArrayList<Posicion> vacias = t.getCasillasVacias();
+		//le damos algo de tiempo de margen
+		if(tiempo > 1.5)
+			tiempo -= 1.5;
+		else if (tiempo != -1)
+			tiempo = (float)0.5;
+		long tiempo_fin = -1;
+		if(tiempo != -1)
+			tiempo_fin = System.currentTimeMillis() + (long) (tiempo * 1000);
+		//Si el factor de ramificación es menor que el número de ramas naturales, se calcula el heurístico de todas y se cojen las que tengan el mayor valor.
+		//if (ramificacion < vacias.size()) {
+			ArrayList<PosicionHeur> pha = new ArrayList<PosicionHeur>();
+			for (int i = 0; i < vacias.size(); ++i) {
+				if(i > 0 && tiempo != -1 && System.currentTimeMillis() > tiempo_fin) {
+					break;
+				}
+				PosicionHeur ph = new PosicionHeur();
+				ph.p = vacias.get(i);
+				Tablero t2 = t.clon();
+				t2.poner_ficha(ph.p.getx(), ph.p.gety(), color);
+				if (heuristico == ControladorAlgoHeur.ESTOCASTICO) {
+					ph.heur = ControladorAlgoHeur.heuristicoEstocastico(t2, color);
+				} else {
+					ph.heur = ControladorAlgoHeur.heuristicoDistancia(t2, color);
+				}
+				pha.add(ph);
+			}
+			//pha = arraylist de posicionHeur de todas las casillas vacías
+
+			try {
+				vacias = seleccionar(pha, Math.min(ramificacion + profundidad, vacias.size()));
+			} catch (Exception e) {
+				System.err.println("seleccionar: " + e.getMessage());
+			}
+		//}
+		//se calcula el heurístico para cada casilla vacía dentro del rango de la ramificación
+		for (int i = 0; i < Math.min(ramificacion, vacias.size()); ++i) {
+			//Si se ha agotado el tiempo, se detiene sin más
+			if(i > 0 && tiempo != -1 && System.currentTimeMillis() >= tiempo_fin)
+				break;
+			try {
+				Tablero t2 = t.clon();
+				t2.poner_ficha(vacias.get(i).getx(), vacias.get(i).gety(), color);
+				long tiempo_fin_parcial = -1;
+				//dividimos el tiempo disponible en tantas partes como casillas a evaluar
+				if(tiempo != -1)
+					tiempo_fin_parcial = System.currentTimeMillis() + ((long) (tiempo * 1000) / vacias.size());
+				//Lanza minimax en todas las casillas vacías y escogerá la que tenga un valor mayor
+				float heur = minimax(t2, color, color, heuristico, profundidad - 1, ramificacion, tiempo_fin_parcial, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, ht, raiz, quitar(vacias, vacias.get(i).getx(), vacias.get(i).gety()));
+				if (max_valor <= heur) {
+					max_valor = heur;
+					raiz.valor = heur;
+					max_posicion = vacias.get(i);
+				}
+			} catch (Exception e) {
+				System.err.println("minimax: " + e.getMessage());
+			}
+		}
+		return max_posicion;
+	}
+
+	/**
+	 * Retorna el valor heurístico del tablero
+	 *
+	 * @param t El tablero.
+	 * @param heuristico El heurístico a usar.
+	 * @return El valor heurístico del tablero.
+	 */
+	private static float heuristico(Tablero t, int heuristico, int color_heuristico) throws Exception {
+		if (color_heuristico != 1 && color_heuristico != 2) {
+			throw new Exception("Color incorrecto: " + color_heuristico);
+		}
+		switch (heuristico) {
+			case ControladorAlgoHeur.ESTOCASTICO:
+				float f = ControladorAlgoHeur.heuristicoEstocastico(t, color_heuristico);
+				//System.out.println("heur = " + f);
+				return f;
+			case ControladorAlgoHeur.DISTANCIA:
+				return ControladorAlgoHeur.heuristicoDistancia(t, color_heuristico);
+		}
+		return 0; //Aquí no se llega nunca, pero este return es necesario para que compile.
+	}
+
+	/**
+	 * Retorna los N mayores elementos de un array (ordenados).
+	 *
+	 * @param array El array con todos los elementos.
+	 * @param n El número de elementos que se desea.
+	 * @returns Un ArrayList de PosicionHeur de tamaño N con los N mayores elementos de array
+	 * ordenados de mayor a menor.
+	 * @throws Exception Si n es menor que 0.
+	 */
+	public static ArrayList<PosicionHeur> seleccionar2(ArrayList<PosicionHeur> array, int n) throws Exception {
+		if (n < 0) {
+			throw new Exception("n ha de ser mayor o igual que 0.");
+		}
+
+		ArrayList<PosicionHeur> temp = new ArrayList<PosicionHeur>(n);
+		if (array.size() < n) {
+			n = array.size();
+		}
+		if (n == 0) {
+			return new ArrayList<PosicionHeur>(0);
+		}
+
+		temp.add(array.get(0));
+		for (int i = 1; i < array.size(); ++i) {
+			if (temp.size() == n && array.get(i).compareTo(temp.get(n - 1)) == 1) {
+				continue;
+			}
+			int pos = Collections.binarySearch(temp, array.get(i));
+			if (pos < 0) {
+				pos = -(pos + 1);
+			}
+			while (pos < temp.size() && array.get(i).heur == temp.get(pos).heur) {
+				++pos;
+			}
+			if (temp.size() < n) {
+				if (pos == temp.size()) {
+					temp.add(array.get(i));
+				} else {
+					temp.add(pos, array.get(i));
+				}
+			} else {
+				temp.remove(n - 1);
+				if (pos >= temp.size()) {
+					temp.add(array.get(i));
+				} else {
+					temp.add(pos, array.get(i));
+				}
+			}
+		}
+		return temp;
+	}
+
+	/**
+	 * Retorna los N mayores elementos de un array (ordenados).
+	 *
+	 * @param array El array con todos los elementos.
+	 * @param n El número de elementos que se desea.
+	 * @returns Un ArrayList de Posicion de tamaño N con los N mayores elementos de array
+	 * ordenados de mayor a menor.
+	 * @throws Exception Si n es menor que 0.
+	 */
+	public static ArrayList<Posicion> seleccionar(ArrayList<PosicionHeur> al, int n) throws Exception {
+		ArrayList<PosicionHeur> temp = seleccionar2(al, n);
+		ArrayList<Posicion> res = new ArrayList<Posicion>(temp.size());
+		for (int i = 0; i < temp.size(); ++i) {
+			res.add(temp.get(i).p);
+		}
+		return res;
+	}
+
+	/**
+	 * Algoritmo que calcula la mejor posición para realizar una jugada.
+	 *
+	 * @param t La situación del tablero.
+	 * @param color_jugador El color del jugador que realizará la jugada.
+	 * @param color_heuristico El color del jugador que del que se desea
+	 * maximizar el heurístico.
+	 * @param heuristico El heurístico que se usará.
+	 * @param profundidad Profundidad máxima a la que llegará minimax.
+	 * @param tiempo Momento en el que se abortará la ejecución de a búsqueda. Si es -1, no se restringe por tiempo.
+	 * @param ht Tabla de hash de Tableros con sus respectivos valores
+	 * heurísticos.
+	 * @return El valor heurístico de la jugada.
+	 */
+	private static float minimax(Tablero t, int color_jugador, int color_heuristico, int heuristico, int profundidad, int ramificacion, long tiempo, float alpha, float beta, Hashtable ht, Nodo nodo, ArrayList<Posicion> vacias) throws Exception {
+		if (color_jugador != 1 && color_jugador != 2) {
+			throw new Exception("Color incorrecto: " + color_jugador);
+		}
+		if (color_heuristico != 1 && color_heuristico != 2) {
+			throw new Exception("Color incorrecto: " + color_heuristico);
+		}
+		if (heuristico != ControladorAlgoHeur.ESTOCASTICO && heuristico != ControladorAlgoHeur.DISTANCIA) {
+			throw new Exception("Heurístico incorrecto: " + heuristico);
+		}
+		if (profundidad < 0) {
+			throw new Exception("Profundidad incorrecta: " + profundidad);
+		}
+		if (ramificacion <= 0) {
+			throw new Exception("Ramificacion incorrecta: " + profundidad);
+		}
+		//Se crea un nuevo nodo al árbol de jugadas
+		Nodo hijo = new Nodo(t);
+		nodo.hijos = addElement(nodo.hijos, hijo);
+		Float valor_ya_calculado = (Float) ht.get(new TableroHash(t, color_jugador));
+		if (valor_ya_calculado != null) {
+			//Si el valor ya ha sido calculado por otra rama, estará almacenado en la tabla de hash y no es necesario repetir cálculos.
+			hijo.valor = valor_ya_calculado;
+			return valor_ya_calculado;
+		}
+		if (profundidad == 0 || partidaGanada(t) != 0 || (tiempo != -1 && System.currentTimeMillis() >= tiempo)) {
+			//Si es un nodo terminal, se retorna el valor heurístico.
+			hijo.valor = heuristico(t, heuristico, color_heuristico);
+			ht.put(new TableroHash(t, color_jugador), new Float(hijo.valor));
+			return hijo.valor;
+		}
+		// Si no es un nodo terminal aplicamos el factor de ramificación
+		ArrayList<PosicionHeur> pha = new ArrayList<PosicionHeur>(vacias.size());
+		for(Posicion p : vacias) {
+			PosicionHeur nuevo_ph = new PosicionHeur();
+			nuevo_ph.p = p;
+			Tablero t2 = t.clon();
+			t2.poner_ficha(p.getx(), p.gety(), color_jugador);
+			if (heuristico == ControladorAlgoHeur.ESTOCASTICO) {
+				nuevo_ph.heur = ControladorAlgoHeur.heuristicoEstocastico(t2, color_jugador);
+			} else {
+				nuevo_ph.heur = ControladorAlgoHeur.heuristicoDistancia(t2, color_jugador);
+			}
+			pha.add(nuevo_ph);
+		}
+		//Tratamos cada casilla
+		if (color_jugador == color_heuristico) {
+			//Nodo max
+			for (int i = 0; i < Math.min(ramificacion, pha.size()); ++i) {
+//System.err.println(profundidad + " " + i);
+				//Si se ha agotado el tiempo, se retorna el valor que tengamos sin más
+				if(tiempo != -1 && i > 0 && System.currentTimeMillis() >= tiempo) {
+					ht.put(new TableroHash(t, color_jugador), new Float(alpha));
+					hijo.valor = alpha;
+					break;
+				}
+				//sino, pocedemos a evaluar la casilla
+				try {
+					Tablero t2 = t.clon();
+					int nuevo_jugador = 1;
+					if (color_jugador == 1) {
+						nuevo_jugador = 2;
+					}
+					t2.poner_ficha(pha.get(i).p.getx(), pha.get(i).p.gety(), nuevo_jugador);
+					alpha = Math.max(alpha, minimax(t2, nuevo_jugador, color_heuristico, heuristico, profundidad - 1, ramificacion, tiempo, alpha, beta, ht, hijo, quitar(vacias, pha.get(i).p.getx(), pha.get(i).p.gety())));
+					if (beta <= alpha) {
+						//Poda beta
+						ht.put(new TableroHash(t2, color_jugador), new Float(alpha));
+						hijo.valor = alpha;
+//System.err.println("poda beta");
+						break;
+					}
+				} catch(Exception e) {
+					System.err.println("nodo max: " + e.getMessage());
+				}
+			}
+			ht.put(new TableroHash(t, color_jugador), new Float(alpha));
+			hijo.valor = alpha;
+			return alpha;
+		} else {
+			//Nodo min
+			for (int i = 0; i < Math.min(ramificacion, pha.size()); ++i) {
+//System.err.println(profundidad + " " + i);
+				//Si se ha agotado el tiempo, se retorna el valor que tengamos sin más
+				if(tiempo != -1 && i > 0 && System.currentTimeMillis() >= tiempo) {
+					ht.put(new TableroHash(t, color_jugador), new Float(beta));
+					hijo.valor = beta;
+					break;
+				}
+				//sino, pocedemos a evaluar la casilla
+				try {
+					Tablero t2 = t.clon();
+					int nuevo_jugador = 1;
+					if (color_jugador == 1) {
+						nuevo_jugador = 2;
+					}
+					t2.poner_ficha(pha.get(i).p.getx(), pha.get(i).p.gety(), nuevo_jugador);
+					beta = Math.min(beta, minimax(t2, nuevo_jugador, color_heuristico, heuristico, profundidad - 1, ramificacion, tiempo, alpha, beta, ht, hijo, quitar(vacias, pha.get(i).p.getx(), pha.get(i).p.gety())));
+					if (beta <= alpha) {
+						//Poda alpha
+						ht.put(new TableroHash(t2, color_jugador), new Float(beta));
+						hijo.valor = beta;
+//System.err.println("poda alpha");
+						break;
+					}
+				} catch(Exception e) {
+					System.err.println("nodo min: " + e.getMessage());
+				}
+			}
+			ht.put(new TableroHash(t, color_jugador), new Float(beta));
+			hijo.valor = beta;
+			return beta;
+		}
+	}
+
+	/**
+	 * Retorna el ganador de la partida (o 0, si la partida no ha acabado)
+	 *
+	 * @param t El tablero.
+	 * @return El identificador del jugador o 0, si la partida no ha acabado.
+	 */
+	public static int partidaGanada(Tablero t) {
+		int tam = t.gettamany();
+		boolean[][] tBools = new boolean[tam][tam];
+		for (int i = 0; i < tam; ++i) {
+			for (int j = 0; j < tam; ++j) {
+				tBools[i][j] = false;
+			}
+		}
+		for (int x = 0; x < tam; ++x) {
+			try {
+				if (t.getcasilla(x, 0).get_color_ficha() == 2 && !tBools[x][0]) {
+					if (partidaGanadaAux(t, 2, tBools, x, 0)) {
+						return 2;
+					}
+				}
+			} catch (Exception e) {
+			}
+		}
+		for (int i = 0; i < tam; ++i) {
+			for (int j = 0; j < tam; ++j) {
+				tBools[i][j] = false;
+			}
+		}
+		for (int y = 0; y < tam; ++y) {
+			try {
+				if (t.getcasilla(0, y).get_color_ficha() == 1 && !tBools[0][y]) {
+					if (partidaGanadaAux(t, 1, tBools, 0, y)) {
+						return 1;
+					}
+				}
+			} catch (Exception e) {
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * Función auxiliar para calcular si un jugador ha ganado la partida.
+	 *
+	 * @param t El tablero.
+	 * @param jugador El jugador que queremos saber si ha ganado.
+	 * @param tBools Matriz que almacena las posiciones que ya se han visitado.
+	 * @param x La coordenada x de la casilla que estamos evaluando.
+	 * @param y La coordenada y de la casilla que estamos evaluando.
+	 * @return Si el jugador ha ganado la partida.
+	 */
+	private static boolean partidaGanadaAux(Tablero t, int jugador, boolean[][] tBools, int x, int y) throws Exception {
+		if (jugador != 1 && jugador != 2) {
+			throw new Exception("Color incorrecto: " + jugador);
+		}
+
+		tBools[x][y] = true;
+		//El jugador 1 tiene que llegar de la columna 0 a la N - 1 y jugador 2 tiene que llegar de la fila 0 a la N - 1
+		// Jugador 1: horizontal
+		// Jugador 2: vertical
+		if (jugador == 1 && x == t.gettamany() - 1) {
+			return true;
+		}
+		if (jugador == 2 && y == t.gettamany() - 1) {
+			return true;
+		}
+		for (int fila = -1; fila <= 1; ++fila) {
+			for (int col = -1; col <= 1; ++col) {
+				if (fila == col) {
+					continue;
+				}
+				try {
+					if (t.getcasilla(x + col, y + fila).get_color_ficha() == jugador && !tBools[x + col][y + fila]) {
+						if (partidaGanadaAux(t, jugador, tBools, x + col, y + fila)) {
+							return true;
+						}
+					}
+				} catch (Exception e) {
+				}
+			}
+		}
+		return false;
+	}
+}

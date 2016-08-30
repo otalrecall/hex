@@ -1,0 +1,646 @@
+package dominio;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Random;
+import java.util.Stack;
+
+/**
+ *
+ * @author Daniel Otal Rodriguez
+ */
+public class ControladorJuego {
+	// Constantes para las dificultades: 1 = fácil, 2 = media, 3 = difícil
+
+	/**
+	 * Constante que contiene la dificultad con la que se usará el algoritmo
+	 * montecarlo con el heurístico de distancias.
+	 */
+	private final static int MONTECARLO_DISTANCIA = 4;
+	/**
+	 * /**
+	 * Constante que contiene la dificultad con la que se usará el algoritmo
+	 * minimax con el heurístico estocástico.
+	 */
+	private final static int MINIMAX_ESTOCASTICO = 3;
+	/**
+	 * Constante que contiene la dificultad con la que se usará el algoritmo
+	 * minimax con el heurístico basado en distancias.
+	 */
+	private final static int MINIMAX_DISTANCIA = 1;
+	/**
+	 * Constante que contiene la dificultad con la que se usará el algoritmo
+	 * MonteCarlo con el heurístico estocástico.
+	 */
+	private final static int MONTECARLO_ESTOCASTICO = 2;
+	/**
+	 * Tablero donde se juega la partida
+	 */
+	private Tablero tablero;
+	/**
+	 * Jugador 1 de la partida
+	 */
+	private Jugador jugador1;
+	/**
+	 * Jugador 2 de la partida
+	 */
+	private Jugador jugador2;
+	/**
+	 * Controlador de configuracion
+	 */
+	private Config config;
+	/**
+	 * Controlador de ranking
+	 */
+	private ControladorRanking ranking;
+	/**
+	 * Controlador de partida
+	 */
+	private ControladorPartida contPartida;
+	/**
+	 * Controlador del algoritmo Montecarlo del jugador 1
+	 */
+	private ControladorAlgoMonteCarlo IAMontecarlo1;
+	/**
+	 * Controlador del algoritmo Montecarlo del jugador 2
+	 */
+	private ControladorAlgoMonteCarlo IAMontecarlo2;
+	/**
+	 * Parámetro usado por las IA para delimitar su árbol
+	 */
+	private float tiempoIA;
+
+	/**
+	 * Crea un controlador de juego
+	 *
+	 * @param contPartida El controlador de la partida
+	 * @return	El nuevo controlador de juego.
+	 * @exception Lanza excepción si no se puede instanciar el controlador de
+	 * partida
+	 */
+	public ControladorJuego(ControladorPartida contPartida) throws Exception {
+		this.contPartida = contPartida;
+		tablero = contPartida.getTablero();
+		jugador1 = contPartida.getj1();
+		jugador2 = contPartida.getj2();
+		config = contPartida.getconfig();
+		if (config instanceof ConfigContrarreloj) {
+			tiempoIA = contPartida.getDurTurno();
+		} else {
+			tiempoIA = -1;
+		}
+		ranking = new ControladorRanking();
+	}
+
+	/**
+	 * Función que retorna el árbol de jugadas del jugador
+	 *
+	 * @param jugador El número del jugador
+	 * @return	El árbol de jugadas del jugador
+	 * @exception Lanza excepción si la dificultad no es la correcta
+	 */
+	public float[] getArbol(int jugador) throws Exception {
+		if (jugador == 1 && !contPartida.esHumano(1)) {
+			if (contPartida.getDificultat(1) == MINIMAX_DISTANCIA) {
+				return ControladorAlgo.getArbol();
+			} else if (contPartida.getDificultat(1) == MONTECARLO_ESTOCASTICO
+					|| contPartida.getDificultat(1) == MONTECARLO_DISTANCIA) {
+				if (config.getCambio()) {
+					return IAMontecarlo2.getArbol();
+				} else {
+					return IAMontecarlo1.getArbol();
+				}
+			} else if (contPartida.getDificultat(1) == MINIMAX_ESTOCASTICO) {
+				return ControladorAlgo.getArbol();
+			}
+		} else if (jugador == 2 && !contPartida.esHumano(2)) {
+			if (contPartida.getDificultat(2) == MINIMAX_DISTANCIA) {
+				return ControladorAlgo.getArbol();
+			} else if (contPartida.getDificultat(2) == MONTECARLO_ESTOCASTICO
+					|| contPartida.getDificultat(2) == MONTECARLO_DISTANCIA) {
+				if (config.getCambio()) {
+					return IAMontecarlo1.getArbol();
+				} else {
+					return IAMontecarlo2.getArbol();
+				}
+			} else if (contPartida.getDificultat(2) == MINIMAX_ESTOCASTICO) {
+				return ControladorAlgo.getArbol();
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Retorna el tablero
+	 *
+	 * @return Array de fichas que representan el tablero
+	 * @exception Lanza excepción si se intentan obtener fichas de fuera el
+	 * alcance del tablero
+	 */
+	public int[][] getTablero() throws Exception {
+		int[][] taulerF = new int[tablero.gettamany()][tablero.gettamany()];
+		for (int fila = 0; fila < tablero.gettamany(); ++fila) {
+			for (int col = 0; col < tablero.gettamany(); ++col) {
+				taulerF[col][fila] = tablero.getcasilla(col, fila).get_color_ficha();
+			}
+		}
+		return taulerF;
+	}
+
+	/**
+	 * Se crea un tablero de un tamaño determinado
+	 *
+	 * @param tam El tamaño del tablero en cuestión
+	 * @exception Lanza excepción si el tamaño del tablero es inferior de 4x4 o
+	 * superior a 7x7
+	 */
+	public void setTauler(int tam) throws Exception {
+		tablero = new Tablero(tam);
+		contPartida.setTablero(tablero);
+	}
+
+	/**
+	 * Comienza una partida
+	 *
+	 * @exception Lanza excepción si no se pueden instanciar las IA
+	 */
+	public void comenzarPartida() throws Exception {
+		if (config.getApertura() == 0) {
+			Random rand = new Random();
+			int ap = rand.nextInt(2);
+			ap++;
+			config.setApertura(ap);
+			contPartida.setconfig(config);
+		}
+		int nuevo_color = 2;
+		if(jugadorTurnoActual() == 2)
+			nuevo_color = 1;
+		int dificultat1, dificultat2;
+		if (!config.getHumano1()) {
+			dificultat1 = ((IA) jugador1).getdificultat();
+			if (dificultat1 == MONTECARLO_ESTOCASTICO) {
+				IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+			} else if (dificultat1 == MONTECARLO_DISTANCIA) {
+				IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+			}
+		}
+		if (!config.getHumano2()) {
+			dificultat2 = ((IA) jugador2).getdificultat();
+			if (dificultat2 == MONTECARLO_ESTOCASTICO) {
+				IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+			} else if (dificultat2 == MONTECARLO_DISTANCIA) {
+				IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+			}
+		}
+		if (config.getApertura() == 1) {
+			jugador1.empezar_a_sumar_tiempo();
+		} else {
+			jugador2.empezar_a_sumar_tiempo();
+		}
+	}
+
+	/**
+	 * Inicia una partida cargada
+	 *
+	 * @exception Lanza excepción si no se pueden instanciar las IA
+	 */
+	public void comenzarPartidaCargada() throws Exception {
+		rellenarTablero();
+		if (jugadorTurnoActual() == 1) {
+			jugador1.empezar_a_sumar_tiempo();
+		} else {
+			jugador2.empezar_a_sumar_tiempo();
+		}
+		int nuevo_color = 2;
+		if(jugadorTurnoActual() == 2)
+			nuevo_color = 1;
+		if (!config.getHumano1()) {
+			int dificultat1 = ((IA) jugador1).getdificultat();
+			try {
+				if (dificultat1 == MONTECARLO_ESTOCASTICO) {
+					IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+				} else if (dificultat1 == MONTECARLO_DISTANCIA) {
+					IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+				}
+			} catch (Exception e) {
+				System.err.println(e.getMessage());
+			}
+		}
+		if (!config.getHumano2()) {
+			int dificultat2 = ((IA) jugador2).getdificultat();
+			try {
+				if (dificultat2 == MONTECARLO_ESTOCASTICO) {
+					IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+				} else if (dificultat2 == MONTECARLO_DISTANCIA) {
+					IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+				}
+			} catch (Exception e) {
+				System.err.println(e.getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Inicia una partida de tipo predeterminada
+	 *
+	 */
+	public void comenzarPartidaPred() {
+		ArrayList<Posicion> fichas1 = jugador1.getfichas();
+		ArrayList<Posicion> fichas2 = jugador2.getfichas();
+		jugador1 = contPartida.getJugadorPred(1);
+		jugador2 = contPartida.getJugadorPred(2);
+		jugador1.setFichas(fichas1);
+		jugador2.setFichas(fichas2);
+		contPartida.setj1(jugador1);
+		contPartida.setj2(jugador2);
+		if (jugador1 instanceof Humano) {
+			config.setHumano1(true);
+		} else {
+			int nuevo_color = 2;
+			if(jugadorTurnoActual() == 2)
+				nuevo_color = 1;
+			config.setHumano1(false);
+			int dificultat1 = ((IA) jugador1).getdificultat();
+			try {
+				if (dificultat1 == MONTECARLO_ESTOCASTICO) {
+					IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+				} else if (dificultat1 == MONTECARLO_DISTANCIA) {
+					IAMontecarlo1 = new ControladorAlgoMonteCarlo(tablero, 1, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(1), contPartida.getRamificacion(1), tiempoIA);
+				}
+			} catch (Exception e) {
+			}
+		}
+		if (jugador2 instanceof Humano) {
+			config.setHumano2(true);
+		} else {
+			int nuevo_color = 2;
+			if(jugadorTurnoActual() == 2)
+				nuevo_color = 1;
+			config.setHumano2(false);
+			int dificultat1 = ((IA) jugador2).getdificultat();
+			try {
+				if (dificultat1 == MONTECARLO_ESTOCASTICO) {
+					IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+				} else if (dificultat1 == MONTECARLO_DISTANCIA) {
+					IAMontecarlo2 = new ControladorAlgoMonteCarlo(tablero, 2, nuevo_color, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(2), contPartida.getRamificacion(2), tiempoIA);
+				}
+			} catch (Exception e) {
+			}
+		}
+		contPartida.setconfig(config);
+	}
+
+	/**
+	 * Termina el turno actual
+	 *
+	 * @param jugador El número identificador del jugador
+	 */
+	public void acabarTurno(int jugador) {
+		if (jugador == 1) {
+			jugador1.acabar_a_sumar_tiempo();
+			jugador2.empezar_a_sumar_tiempo();
+		} else {
+			jugador2.acabar_a_sumar_tiempo();
+			jugador1.empezar_a_sumar_tiempo();
+		}
+		contPartida.incrementarTurnos();
+	}
+
+	/**
+	 * Realiza todas las acciones relacionadas con una partida terminada, como
+	 * guardar ranking y detener los temporizadores
+	 *
+	 * @exception Devuelve excepción si no se puede guardar en el ranking el
+	 * jugador ganador humano
+	 */
+	public void acabarPartida() throws IOException {
+		if (contPartida.getGanador() == 1) {
+			jugador2.acabar_a_sumar_tiempo();
+			if (config.getHumano1() && !config.getHumano2()) {
+				guardarRanking(jugador1);
+			}
+		} else if (contPartida.getGanador() == 2) {
+			jugador1.acabar_a_sumar_tiempo();
+			if (config.getHumano2() && !config.getHumano1()) {
+				guardarRanking(jugador2);
+			}
+
+		}
+	}
+
+	/**
+	 * La IA ejecuta su movimiento
+	 *
+	 * @param jugador El numero del jugador
+	 * @exception Devuelve excepción si el movimiento de la IA no es válido o si
+	 * la IA tiene una profundidad, tiempo o jugador incorrectos
+	 */
+	public void movimientoIA(int jugador) throws Exception {
+		Posicion p = null;
+		int dificultat;
+		if (jugador == 1 && !config.getHumano1()) {
+			dificultat = ((IA) jugador1).getdificultat();
+		} else if (jugador == 2 && !config.getHumano2()) {
+			dificultat = ((IA) jugador2).getdificultat();
+		} else {
+			throw new Exception("El jugador " + jugador + " no és una CPU");
+		}
+		Tablero t = tablero.clon();
+		if (contPartida.getturnos() == 1 && config.getTarta()) {
+			t = new Tablero(tablero.gettamany());
+		}
+		switch (dificultat) {
+			case MINIMAX_DISTANCIA:
+				p = ControladorAlgo.jugar(t, jugador, ControladorAlgoHeur.DISTANCIA, contPartida.getProfundidad(jugador), contPartida.getRamificacion(jugador), tiempoIA);
+				break;
+			case MONTECARLO_DISTANCIA:
+				int nuevo_color1 = 2;
+				if(jugadorTurnoActual() == 2)
+					nuevo_color1 = 1;
+				if (contPartida.getturnos() == 1 && config.getTarta() && IAMontecarlo1 != null) {
+					IAMontecarlo1.reset(t, nuevo_color1);
+				}
+				if (contPartida.getturnos() == 1 && config.getTarta() && IAMontecarlo2 != null) {
+					IAMontecarlo2.reset(t, nuevo_color1);
+				}
+				if (jugador == 1) {
+					p = IAMontecarlo1.jugar();
+				} else {
+					p = IAMontecarlo2.jugar();
+				}
+				break;
+			case MONTECARLO_ESTOCASTICO:
+				int nuevo_color2 = 2;
+				if(jugadorTurnoActual() == 2)
+					nuevo_color2 = 1;
+				if (contPartida.getturnos() == 1 && config.getTarta() && IAMontecarlo1 != null) {
+					IAMontecarlo1.reset(t, nuevo_color2);
+				}
+				if (contPartida.getturnos() == 1 && config.getTarta() && IAMontecarlo2 != null) {
+					IAMontecarlo2.reset(t, nuevo_color2);
+				}
+				if (jugador == 1) {
+					p = IAMontecarlo1.jugar();
+				} else {
+					p = IAMontecarlo2.jugar();
+				}
+				break;
+			case MINIMAX_ESTOCASTICO:
+				p = ControladorAlgo.jugar(t, jugador, ControladorAlgoHeur.ESTOCASTICO, contPartida.getProfundidad(jugador), contPartida.getRamificacion(jugador), tiempoIA);
+				break;
+		}
+		int[] x = contPartida.getPilaPeek();
+		//Si se realiza un cambio durante la regla de la tarta
+		if (x != null && x[0] == p.getx() && x[1] == p.gety()) {
+			tablero.quitar_ficha(p.getx(), p.gety());
+			contPartida.pilaPop();
+			if (jugador == 1) {
+				jugador2.quitarUltimaFicha();
+			} else {
+				jugador1.quitarUltimaFicha();
+			}
+		}
+		movimiento(p.getx(), p.gety(), jugador);
+		if (contPartida.getturnos() == 2 && config.getTarta()) {
+			int nuevo_color = 2;
+			if(jugadorTurnoActual() == 2)
+				nuevo_color = 1;
+			// Si hay un cambio de bandos se resetea el árbol de MonteCarlo
+			if (IAMontecarlo1 != null) {
+				IAMontecarlo1.reset(tablero, nuevo_color);
+			}
+			if (IAMontecarlo2 != null) {
+				IAMontecarlo2.reset(tablero, nuevo_color);
+			}
+		}
+	}
+
+	/**
+	 * Hace un movimiento de un jugador en la casilla (x, y)
+	 *
+	 * @param x Posicion x de la casilla
+	 * @param y Posicion y de la casilla
+	 * @param jugador Numero del jugador
+	 * @exception Devuelve excepción si el movimiento no es válido al haber ya
+	 * una ficha en el tablero o por colocar la ficha fuera del tablero
+	 */
+	public void movimiento(int x, int y, int jugador) throws Exception {
+		boolean casillaVacia = tablero.getcasilla(x, y).estavacia();
+		//opcion para regla de la tarta:
+		if (contPartida.getturnos() == 1 && config.getTarta() && !casillaVacia) {
+			tablero.quitar_ficha(x, y);
+			contPartida.pilaPop();
+		}
+		casillaVacia = tablero.getcasilla(x, y).estavacia();
+		if (casillaVacia) {
+			int color;
+			if (jugador == 1) {
+				jugador1.acabar_a_sumar_tiempo();
+				color = jugador1.getcolorficha();
+				jugador2.empezar_a_sumar_tiempo();
+			} else {
+				jugador2.acabar_a_sumar_tiempo();
+				color = jugador2.getcolorficha();
+				jugador1.empezar_a_sumar_tiempo();
+			}
+			Posicion posActual = new Posicion();
+			posActual.setx(x);
+			posActual.sety(y);
+			tablero.poner_ficha(x, y, color);
+			if (jugador == 1) {
+				jugador1.addficha(posActual);
+			} else {
+				jugador2.addficha(posActual);
+			}
+			contPartida.setTablero(tablero);
+			contPartida.pilaPush(posActual);
+			contPartida.incrementarTurnos();
+			int ganador = ControladorAlgo.partidaGanada(tablero);
+			contPartida.setGanador(ganador);
+			actualizarMontecarlo(x, y, color);
+		} else {
+			throw new Exception("El moviment no es valid");
+		}
+	}
+
+	/**
+	 * Actualiza el árbol de MonteCarlo cuando se hace un movimiento.
+	 *
+	 * @param x La coordenada x del movimiento.
+	 * @param y La coordenada y del movimiento.
+	 * @param color El color del movimiento.
+	 */
+	public void actualizarMontecarlo(int x, int y, int color) {
+		if (IAMontecarlo1 != null) {
+			try {
+				IAMontecarlo1.movimiento(x, y, color);
+			} catch (Exception e) {
+				try {
+					IAMontecarlo1.reset(tablero, color);
+				} catch (Exception e2) {
+					System.err.println("actualizarMonteCarlo1: " + e.getMessage());
+				}
+			}
+		}
+		if (IAMontecarlo2 != null) {
+			try {
+				IAMontecarlo2.movimiento(x, y, color);
+			} catch (Exception e) {
+				try {
+					IAMontecarlo2.reset(tablero, color);
+				} catch (Exception e2) {
+					System.err.println("actualizarMonteCarlo2: " + e.getMessage());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Coloca las fichas que se han jugado en el tablero para preparar una
+	 * partida ya comenzada anteriormente
+	 *
+	 * @exception Devuelve excepción si no se puede realizar la colocación de
+	 * fichas en el tablero
+	 */
+	private void rellenarTablero() throws Exception {
+		ArrayList<Posicion> fichasJ1 = jugador1.getfichas();
+		ArrayList<Posicion> fichasJ2 = jugador2.getfichas();
+		Posicion posActual;
+		for (int i = 0; i < fichasJ1.size(); ++i) {
+			posActual = fichasJ1.get(i);
+			tablero.poner_ficha(posActual.getx(), posActual.gety(), 1);
+		}
+		for (int i = 0; i < fichasJ2.size(); ++i) {
+			posActual = fichasJ2.get(i);
+			tablero.poner_ficha(posActual.getx(), posActual.gety(), 2);
+		}
+	}
+
+	/**
+	 * Anade una entrada al ranking
+	 *
+	 * @param jugador El jugador ganador de la partida
+	 * @exception Retorna excepción si no se puede guardar ranking
+	 */
+	private void guardarRanking(Jugador jugador) throws IOException {
+		if (!config.getDeshacer() && !config.getAyuda() && config.getTarta()
+				&& !contPartida.getReglasRotas()) {
+			int clauTamany = tablero.gettamany();
+			String clauDif;
+			int dif;
+			if (jugador == jugador1) {
+				dif = ((IA) jugador2).getdificultat();
+			} else {
+				dif = ((IA) jugador1).getdificultat();
+			}
+			if (dif == 1) {
+				clauDif = "easy";
+			} else if (dif == 2) {
+				clauDif = "med";
+			} else if (dif == 3) {
+				clauDif = "hard";
+			} else {
+				clauDif = "extr";
+			}
+			try {
+				ranking.cargarRanking(clauTamany + "x" + clauTamany + clauDif);
+			} catch (Exception e) {
+			}
+			String nombre = ((Humano) jugador).getNombre();
+			int tiempo = jugador.gettiempo();
+			int puntos;
+			if (contPartida.getturnos() == 0) {
+				puntos = 0;
+			} else {
+				puntos = (tiempo / (contPartida.getturnos() / 2));
+			}
+			ranking.addEntrada(nombre, puntos);
+			ranking.guardarRanking(clauTamany + "x" + clauTamany + clauDif);
+		}
+	}
+
+	/**
+	 * Retorna el jugador que juega el turno actual
+	 *
+	 * @return El numero del jugador del turno actual
+	 */
+	public int jugadorTurnoActual() {
+		if (config.getApertura() == 1) {
+			if (contPartida.getturnos() % 2 == 0) {
+				return 1;
+			} else {
+				return 2;
+			}
+		} else {
+			if (contPartida.getturnos() % 2 == 0) {
+				return 2;
+			} else {
+				return 1;
+			}
+		}
+	}
+
+	/**
+	 * Deshace las últimas n jugadas realizadas, eliminando las fichas del
+	 * tablero
+	 *
+	 * @param n Número de veces que se deshará la partida
+	 * @exception Devuelve excepción si no se puede quitar la ficha del tablero
+	 */
+	public void deshacer(int n) throws Exception {
+		Stack<Posicion> pila = contPartida.getestados();
+		if (config.getDeshacer()) {
+			if (!pila.empty() && n > 0) {
+				int i = 0;
+				while (i < n) {
+					if (jugadorTurnoActual() == 1) {
+						jugador1.quitarUltimaFicha();
+					} else if (jugadorTurnoActual() == 2) {
+						jugador2.quitarUltimaFicha();
+					}
+					Posicion posActual = pila.peek();
+					tablero.quitar_ficha(posActual.getx(), posActual.gety());
+					pila.pop();
+					contPartida.decrementarTurnos();
+					++i;
+				}
+				contPartida.setestados(pila);
+				int nuevo_color = 2;
+				if(jugadorTurnoActual() == 2)
+					nuevo_color = 1;
+				if (IAMontecarlo1 != null) {
+					IAMontecarlo1.reset(tablero, nuevo_color);
+				}
+				if (IAMontecarlo2 != null) {
+					IAMontecarlo2.reset(tablero, nuevo_color);
+				}
+			} else {
+				throw new Exception("No es pot desfer la jugada");
+			}
+		} else {
+			throw new Exception("Deshacer no está activado");
+		}
+	}
+
+	/**
+	 * Retorna la mejor jugada que se puede realizar en ese momento para el
+	 * jugador
+	 *
+	 * @return La posicion propuesta por la IA
+	 * @exception Devuelve excepción si la IA tiene una profundidad, color o
+	 * tiempo incorrectos, o bien si la ayuda no está activada en la
+	 * configuración de la partida
+	 */
+	public int[] ayuda() throws Exception {
+		if (config.getAyuda()) {
+			int[] posicion = new int[2];
+			Posicion propuesta;
+			propuesta = ControladorAlgo.jugar(tablero, jugadorTurnoActual(), ControladorAlgoHeur.ESTOCASTICO, 1, 99, 1);
+			posicion[0] = propuesta.getx();
+			posicion[1] = propuesta.gety();
+			return posicion;
+		} else {
+			throw new Exception("Ayuda no está activado");
+		}
+	}
+}

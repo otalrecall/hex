@@ -1,0 +1,84 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Presentacion;
+
+import java.awt.Color;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ * @author Daniel Otal Rodr�guez
+ */
+public class VistaJuego extends Vista {
+
+    private VistaTablero tablero;
+ // private ControladorMenu menu;
+ // private ControladorTabs tabs;
+    private ControladorVistaPartida partida;
+    private ControladorVistaJuego juego;
+
+    public VistaJuego() {
+       
+        try {
+            //partida = new ControladorVistaPartida(utilConfig, newGame, path);
+            partida = new ControladorVistaPartida();
+            partida.setEsPred(esPredeterminada);
+            partida.setUtilConfig(utilConfig);
+            partida.setNewGame(newGame);
+            partida.setPath(path);
+            partida.comenzarPartida();
+            //juego = new ControladorVistaJuego(partida, utilConfig, newGame);
+            juego = new ControladorVistaJuego();
+            juego.setControladorVistaPartida(partida);
+            juego.setUtilConfig(utilConfig);
+            juego.setNewGame(newGame);
+            juego.comenzarJuego();
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, e.getMessage());
+        }
+        tabs = new ControladorTabs(utilConfig);
+
+        juego.setVistaArbolIA(tabs.getVistaAlgoritmo());
+        tablero = new VistaTablero(partida.getTamTablero(), 200, partida, juego);
+        tablero.setBackground(new Color(216, 180, 140));
+        this.menu = new ControladorMenu(tabs, partida, tablero, menu);
+        if (!newGame) {
+            try {
+                tablero.setTablero(juego.getTablero());
+            } catch (Exception e) {
+                JOptionPane.showMessageDialog(this, e.getMessage());
+            }
+        }
+        GridBagLayout layout = new GridBagLayout();
+        setLayout(layout);
+        GridBagConstraints delimitador = new GridBagConstraints();
+        delimitador.ipadx = 10;
+        delimitador.ipady = 20;
+        delimitador.gridx = 0;
+        delimitador.gridy = 0;
+        delimitador.gridwidth = 2;
+        delimitador.weightx = 1;
+        delimitador.weighty = 0;
+        delimitador.fill = GridBagConstraints.HORIZONTAL;
+        add(this.menu, delimitador);
+        delimitador.fill = GridBagConstraints.BOTH;
+        delimitador.gridy = 1;
+        delimitador.gridwidth = 1;
+        delimitador.weightx = 0.15;
+        delimitador.weighty = 1;
+        add(tabs, delimitador);
+
+        delimitador.gridx = 1;
+        delimitador.gridy = 1;
+        delimitador.gridwidth = 1;
+        delimitador.weightx = 0.85;
+        add(tablero, delimitador);
+        this.setVisible(true);
+    }
+}

@@ -1,0 +1,96 @@
+package Presentacion;
+
+import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JMenu;
+import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ * @author Daniel Otal Rodríguez
+ */
+public class VistaOpciones extends JMenu {
+
+    private static final long serialVersionUID = 1L;
+    private JCheckBoxMenuItem n;
+    //private ControladorTabs contTabs;
+    private VistaTablero tablero;
+    private ControladorVistaPartida partida;
+    private JSpinner jSpinnerUndo;
+
+    public VistaOpciones( ) {
+        super("Opciones");
+      
+        SpinnerNumberModel sModel = new SpinnerNumberModel(1, 1, null, 1);
+        jSpinnerUndo = new JSpinner(sModel);
+        n = new JCheckBoxMenuItem("Mostrar más información");
+        n.setSelected(false);
+        JMenuItem[] opciones = {n, new JMenuItem("Sugerir jugada"),
+            new JMenuItem("Deshacer jugada")};
+        if (!partida.getUndo()) {
+            Color color = new Color(172, 172, 172);
+            opciones[2].setForeground(color);
+        }
+        if (!partida.getHelp()) {
+            Color color = new Color(172, 172, 172);
+            opciones[1].setForeground(color);
+        }
+        for (int i = 0; i < opciones.length; i++) {
+            this.add(opciones[i]);
+            opciones[i].addActionListener(new GestorMenu(i));
+        }
+    }
+
+    private class GestorMenu implements ActionListener {
+
+        private int Indice;
+
+        public GestorMenu(int indice) {
+            Indice = indice;
+
+        }
+
+        public void actionPerformed(ActionEvent e) {
+
+            switch (Indice) {
+                case 0:
+                    if (n.isSelected()) {
+                 //       contTabs.setVisible(true);
+                    } else {
+                  //      contTabs.setVisible(false);
+                    }
+                    break;
+                case 1:
+                    pedirAyuda();
+                    break;
+                case 2:
+                    deshacerJugada();
+                    break;
+            }
+        }
+    }
+
+    private void pedirAyuda() {
+        if (partida.getHelp()) {
+            tablero.pedirAyuda();
+        }
+    }
+
+    private void deshacerJugada() {
+        if (partida.getUndo()) {
+            int option = JOptionPane.showOptionDialog(tablero, jSpinnerUndo, "Introduce un número", JOptionPane.OK_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, null);
+            if (option == JOptionPane.CANCEL_OPTION) {
+                // no hacer nada
+            } else if (option == JOptionPane.OK_OPTION) {
+                int num = (Integer) jSpinnerUndo.getValue();
+				tablero.deshacerJugada(num);
+            }
+        }
+    }
+}

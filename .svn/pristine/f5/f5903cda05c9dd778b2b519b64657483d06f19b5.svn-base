@@ -1,0 +1,111 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Presentacion;
+
+import java.awt.*;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
+/**
+ *
+ * @author Sergio Moyano Diaz
+ */
+public class VistaconfConfig extends Vista {
+
+    public VistaconfConfig(){
+        
+    
+    }
+    public VistaconfConfig(UtilConfiguracion utilConfig) {
+
+        super();
+        String o[] = new String[9];
+        this.setLayout(new BorderLayout());
+        JPanel p = new JPanel(new GridBagLayout());
+        if (utilConfig.getTarta()) {
+            o[0] = "Sí";
+        } else {
+            o[0] = "No";
+        }
+        if (utilConfig.getHelp()) {
+            o[1] = "Sí";
+        } else {
+            o[1] = "No";
+        }
+        if (utilConfig.getUndo()) {
+            o[2] = "Sí";
+        } else {
+            o[2] = "No";
+        }
+        if (utilConfig.getEsHum1()) {
+            o[3] = "";
+            o[4] = utilConfig.getNom1();
+        } else {
+            o[3] = "IA";
+            if (utilConfig.getDif1() == 1) {
+                o[4] = "Minimax-Distancia";
+            } else if (utilConfig.getDif1() == 2) {
+                o[4] = "Montecarlo-Estocástico";
+            } else if (utilConfig.getDif1() == 3) {
+                o[4] = "Minimax-Estocástico";
+            } else {
+                o[4] = "Montecarlo-Distancia";
+            }
+        }
+        if (utilConfig.getEsHum2()) {
+            o[5] = "";
+            o[6] = utilConfig.getNom2();
+        } else {
+            o[5] = "IA";
+            if (utilConfig.getDif2() == 1) {
+                o[6] = "Minimax-Distancia";
+            } else if (utilConfig.getDif2() == 2) {
+                o[6] = "Montecarlo-Estocástico";
+            } else if (utilConfig.getDif2() == 3) {
+                o[6] = "Minimax-Estocástico";
+            } else {
+                o[6] = "Montecarlo-Distancia";
+            }
+        }
+        if (utilConfig.getDuracionTurno() != 0) {
+            o[7] = "Modo contrarreloj: " + utilConfig.getDuracionTurno() + " segundos/turno";
+        } else {
+            //o[7] = "Modo Normal";
+        }
+        if (utilConfig.getApertura() == 1) {
+            o[8] = "Jugador 1";
+        } else if (utilConfig.getApertura() == 2) {
+            o[8] = "Jugador 2";
+        }
+        JLabel j1 = new JLabel("Regla de la tarta: " + o[0]);
+        JLabel j2 = new JLabel("Sugerir jugada: " + o[1]);
+        JLabel j3 = new JLabel("Deshacer jugada: " + o[2]);
+        JLabel j4 = new JLabel("Jugador 1: " + o[3] + " " + o[4]);
+        JLabel j5 = new JLabel("Jugador 2: " + o[5] + " " + o[6]);
+        JLabel j6 = new JLabel(o[7]);
+        JLabel j7 = new JLabel("Apertura: " + o[8]);
+        setSize(400, 400);
+        GridBagConstraints w = new GridBagConstraints();
+        w.ipady = 10;
+        w.anchor = GridBagConstraints.LINE_START;
+        w.gridx = 0;
+        w.gridy = 0;
+        p.add(j1, w);
+        w.gridy = 1;
+        p.add(j2, w);
+        w.gridy = 2;
+        p.add(j3, w);
+        w.gridy = 3;
+        p.add(j4, w);
+        w.gridy = 4;
+        p.add(j5, w);
+        w.gridy = 5;
+        p.add(j6, w);
+        w.gridy = 6;
+        p.add(j7, w);
+
+        this.add(p, java.awt.BorderLayout.NORTH);
+    }
+}

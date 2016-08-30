@@ -1,0 +1,291 @@
+package Presentacion;
+
+import dominio.ControladorJuego;
+import java.awt.Color;
+import java.awt.Font;
+import java.io.IOException;
+import javax.swing.JLabel;
+
+/**
+ *
+ * @author Daniel Otal Rodríguez
+ */
+public class ControladorVistaJuego {
+    
+    private ControladorJuego contJuego;
+    private VistaVerAlgoritmo arbolIA;
+    private UtilConfiguracion utilConfig;
+    private boolean newGame;
+    private ControladorVistaPartida partida;
+    private VistaTablero tablero;
+    private VistaInfo info;
+    private Toolbar jt;
+    
+    public ControladorVistaJuego() {
+        jt = new Toolbar(this);
+        tablero = new VistaTablero(jt);
+        tablero.setVisible(false);
+        arbolIA = new VistaVerAlgoritmo();
+    }
+    
+    public void setVistaInfo(VistaInfo info) {
+        this.info = info;
+    }
+    
+    public VistaVerAlgoritmo getVistaAlgoritmo() {
+        return arbolIA;
+    }
+    
+    public VistaTablero getVistaTablero() {
+        return tablero;
+    }
+    
+    public void visibilidadVistaTablero(boolean modo) {
+        if (modo) {
+            tablero.setVisible(true);
+        } else {
+            tablero.setVisible(false);
+        }
+    }
+    
+    public void detenerTimer() {
+        tablero.detenerTimer();
+    }
+
+    /**
+     * Determina el controlador de la partida sobre el que toma información el
+     * controlador de juefo
+     *
+     */
+    public void setControladorVistaPartida(ControladorVistaPartida partida) {
+        this.partida = partida;
+    }
+
+    /**
+     * Determina el path de la partida.
+     *
+     */
+    public void setUtilConfig(UtilConfiguracion utilConfig) {
+        this.utilConfig = utilConfig;
+    }
+
+    /**
+     * Determina si es una partida nueva o si al contrario es una partida
+     * cargada
+     *
+     * @param newGame Si es nuevo juego o no.
+     */
+    public void setNewGame(boolean newGame) {
+        this.newGame = newGame;
+    }
+
+    /**
+     * Comienza el juego, poniendo en marcha los tiempos
+     *
+     */
+    public void comenzarJuego() throws Exception {
+        jt.setAyuda(utilConfig.getHelp());
+        jt.setdeshacer(utilConfig.getUndo());
+        arbolIA.setVerAlgoritmo(utilConfig.getTam());
+        if (!utilConfig.getEsHum1() || !utilConfig.getEsHum2()) {
+            info.setveralgo(true);
+        }
+        partida.visibilidadVistaTitulo(false);
+        visibilidadVistaTablero(true);
+        contJuego = new ControladorJuego(partida.getPartida());
+        if (newGame) {
+            contJuego.comenzarPartida();
+        } else {
+            contJuego.comenzarPartidaCargada();
+            
+        }
+        tablero.resetTablero();
+        tablero.prepararTablero(utilConfig.getTam(), 200, partida, this);
+        if (!newGame) {
+            try {
+                tablero.setTablero(getTablero());
+               tablero.setultimajugadas();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Comienza el juego del tipo predeterminado
+     *
+     */
+    public void comenzarJuegoPred() {
+        contJuego.comenzarPartidaPred();
+    }
+
+    /**
+     * Actualiza el turno actual de la label con el jugador del turno actual al
+     * que le toca lanzar
+     *
+     * @param turno La label
+     * @exception Lanza excepción si el jugador no tiene nombre.
+     */
+    public void actualizarLabelTurno(JLabel turno) throws Exception {
+        Color color;
+        if (contJuego.jugadorTurnoActual() == 1) {
+            if (utilConfig.getEsHum1()) {
+                turno.setText("Turno de " + utilConfig.getNom1());
+            } else {
+                turno.setText("Turno de Jugador 1");
+            }
+            color = new Color(255, 102, 102);
+            turno.setForeground(color);
+        } else if (contJuego.jugadorTurnoActual() == 2) {
+            if (utilConfig.getEsHum2()) {
+                turno.setText("Turno de " + utilConfig.getNom2());
+            } else {
+                turno.setText("Turno de Jugador 2");
+            }
+            color = new Color(238, 243, 95);
+            turno.setForeground(color);
+        }
+        turno.setFont(new Font("Verdana", Font.BOLD, 20));
+    }
+
+    /**
+     * Termina el turno actual, avanzando el número de turnos y pasando al
+     * siguente jugador
+     *
+     * @param jugador El número identificador del jugador
+     */
+    public void acabarTurnoTimer(int jugador) {
+        contJuego.acabarTurno(jugador);
+    }
+
+    /**
+     * Finaliza la partida, entra datos a marcadores si está permitido
+     *
+     */
+    public void acabarPartida() throws IOException {
+        contJuego.acabarPartida();
+    }
+
+    /**
+     * Realiza el movimiento del jugador no-CPU
+     *
+     * @param x La posición x del tablero
+     * @param y La posición y del tablero
+     * @exception Lanza excepción si se intentan obtener fichas de fuera el
+     * alcance del tablero
+     */
+    public void realizarMovimientoHum(int x, int y) throws Exception {
+        contJuego.movimiento(x, y, contJuego.jugadorTurnoActual());
+    }
+
+    /**
+     * Retorna el tablero
+     *
+     * @return Array de fichas que representan el tablero
+     * @exception Lanza excepción si se intentan obtener fichas de fuera el
+     * alcance del tablero
+     */
+    public int[][] getTablero() throws Exception {
+        return contJuego.getTablero();
+    }
+
+    /**
+     * Lanza el movimiento de la Ia del turno actual y escribe su estado en
+     * pantalla, mientras está pensando
+     *
+     * @exception Lanza excepción si se intentan obtener fichas de fuera el
+     * alcance del tablero
+     */
+    public void realizarMovimientoIA(JLabel msg) throws Exception {
+        int numjug = contJuego.jugadorTurnoActual();
+        msg.setText("La IA está pensando");
+        jt.habilitarAyuda(false);
+        jt.habilitardeshacer(false);
+        contJuego.movimientoIA(numjug);
+        jt.habilitarAyuda(true);
+        jt.habilitardeshacer(true);
+        msg.setText("");
+        arbolIA.setArbol(getArbol(numjug));
+    }
+
+    /**
+     * Determina la vista del árbol del algoritmo
+     *
+     */
+    public void setVistaArbolIA(VistaVerAlgoritmo arbolIA) {
+        this.arbolIA = arbolIA;
+    }
+
+    /**
+     * Deshace las últimas n jugadas realizadas, eliminando las fichas del
+     * tablero
+     *
+     * @param n Número de veces que se deshará la partida
+     * @exception Devuelve excepción si no se puede quitar la ficha del tablero
+     */
+    public void undo(int n) throws Exception {
+        
+        tablero.deshacerJugada(n);
+    }
+    public void undo2(int n) throws Exception {
+        
+        contJuego.deshacer(n);
+    }
+    
+    
+    /**
+     * Retorna la mejor jugada que se puede realizar en ese momento para el
+     * jugador
+     *
+     * @return La posicion propuesta por la IA
+     * @exception Devuelve excepción si la IA tiene una profundidad, color o
+     * tiempo incorrectos, o bien si la ayuda no está activada en la
+     * configuración de la partida
+     */
+    public int[] help() throws Exception {
+        
+        return contJuego.ayuda();
+        
+    }
+    
+    public void ayuda() {
+        if (!partida.esHumano(getJugadorTurnoActual())) {
+            return;
+        }
+        tablero.pedirAyuda();
+        
+    }
+
+    /**
+     * Función que retorna el árbol de jugadas del jugador
+     *
+     * @param numjug El número del jugador
+     * @return	El árbol de jugadas del jugador
+     * @exception Lanza excepción si la dificultad no es la correcta
+     */
+    private float[] getArbol(int numjug) throws Exception {
+        float[] f = contJuego.getArbol(numjug);
+        return f;
+    }
+
+    /**
+     * Retorna el jugador que juega el turno actual
+     *
+     * @return El numero del jugador del turno actual
+     */
+    public int getJugadorTurnoActual() {
+        return contJuego.jugadorTurnoActual();
+    }
+    
+    public void preparaNewGame() {
+        tablero.resetTablero();
+    }
+    
+    public void setVisiblidadArbolIA() {
+        info.setveralgo(false);
+    }
+    
+    public int getPartidaAcabada() {
+        return contJuego.getPartidaGanada();
+    }
+}

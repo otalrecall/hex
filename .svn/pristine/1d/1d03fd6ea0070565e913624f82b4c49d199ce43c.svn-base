@@ -1,0 +1,151 @@
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package Presentacion;
+
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
+import javax.swing.SpinnerModel;
+import javax.swing.SpinnerNumberModel;
+
+/**
+ *
+ * @author Otal
+ */
+public class VistaRanking extends Vista {
+
+    private JTable tabla;
+    private JScrollPane jScrollPane;
+    private JButton reset;
+    private JButton cargarRanking;
+    private JComboBox selecDif;
+    private JSpinner tam;
+    private ControladorVistaRanking contRanking;
+
+    public VistaRanking(ControladorVistaRanking contRanking) {
+        this.contRanking = contRanking;
+        jScrollPane = new JScrollPane();
+        tabla = new JTable(ERROR, WIDTH);
+        reset = new JButton();
+        cargarRanking = new JButton();
+        selecDif = new JComboBox();
+        selecDif.setModel(new javax.swing.DefaultComboBoxModel(
+                new String[]{"Montecarlo-Distancia", "Montecarlo-Estocástico",
+                    "Minimax-Distancia", "Minimax-Estocástico"}));
+        SpinnerModel model1 = new SpinnerNumberModel(3, 3, null, 1);
+        tam = new JSpinner(model1);
+        tam.setMinimumSize(new java.awt.Dimension(60, 20));
+        tam.setPreferredSize(new java.awt.Dimension(60, 20));
+        reset.setText("Reset");
+        cargarRanking.setText("Cargar");
+        configTabla();
+        this.add(selecDif, this.configurarGrid(0, 0));
+        this.add(tam, this.configurarGrid(0, 1));
+        this.add(cargarRanking, this.configurarGrid(0, 2));
+        this.add(tabla, this.configurarGrid(0, 4));
+        this.add(reset, this.configurarGrid(0, 5));
+        cargarRanking.addActionListener(new gestorTam(1));
+        reset.addActionListener(new gestorTam(2));
+    }
+
+    private class gestorTam implements ActionListener {
+
+        private int Indice;
+        private String cod;
+
+        public gestorTam(int indice) {
+            Indice = indice;
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            switch (Indice) {
+                case 1:
+                    cod = codificar();
+                    contRanking.capturarRanking(cod, tabla);
+                    break;
+                case 2:
+                    cod = codificar();
+                    contRanking.resetRanking(cod, tabla);
+                    break;
+            }
+        }
+    }
+
+    private String codificar() {
+        String num = ((Integer) tam.getValue()).toString();
+        String s = num + "x" + num;
+        if (selecDif.getSelectedIndex() == 0) { //montecarlo-dist
+            s += "extr";
+        } else if (selecDif.getSelectedIndex() == 1) { //montecarlo-esto
+            s += "med";
+        } else if (selecDif.getSelectedIndex() == 2) { //minimax-dist
+            s += "easy";
+        } else if (selecDif.getSelectedIndex() == 3) { //minimax-esto
+            s += "hard";
+        }
+        return s;
+    }
+
+    private void configTabla() {
+        jScrollPane.setCursor(new java.awt.Cursor(java.awt.Cursor.DEFAULT_CURSOR));
+        jScrollPane.setFont(new java.awt.Font("Tahoma", 1, 11)); // NOI18N
+        jScrollPane.setHorizontalScrollBar(null);
+        jScrollPane.setMaximumSize(new java.awt.Dimension(200, 190));
+        jScrollPane.setMinimumSize(new java.awt.Dimension(200, 190));
+        jScrollPane.setPreferredSize(new java.awt.Dimension(200, 190));
+        tabla.setModel(new javax.swing.table.DefaultTableModel(
+                new Object[][]{
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null},
+                    {null, null, null}
+                },
+                new String[]{
+                    "#", "Nombre", "Puntos"
+                }) {
+            Class[] types = new Class[]{
+                java.lang.Integer.class, java.lang.String.class, java.lang.String.class
+            };
+            boolean[] canEdit = new boolean[]{
+                false, false, false
+            };
+
+            @Override
+            public Class getColumnClass(int columnIndex) {
+                return types[columnIndex];
+            }
+
+            @Override
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit[columnIndex];
+            }
+        });
+        tabla.setGridColor(new java.awt.Color(255, 102, 102));
+        tabla.setMaximumSize(new java.awt.Dimension(170, 160));
+        tabla.setMinimumSize(new java.awt.Dimension(100, 160));
+        tabla.setPreferredSize(new java.awt.Dimension(130, 160));
+        tabla.setSelectionBackground(new java.awt.Color(255, 204, 204));
+        tabla.getTableHeader().setResizingAllowed(false);
+        jScrollPane.setViewportView(tabla);
+        tabla.getTableHeader().setReorderingAllowed(false);
+        tabla.getColumnModel().getColumn(0).setResizable(false);
+        tabla.getColumnModel().getColumn(0).setPreferredWidth(20);
+        tabla.getColumnModel().getColumn(1).setResizable(false);
+        tabla.getColumnModel().getColumn(1).setPreferredWidth(100);
+        tabla.getColumnModel().getColumn(2).setResizable(false);
+        tabla.getColumnModel().getColumn(2).setPreferredWidth(50);
+    }
+}
